@@ -1,1 +1,4 @@
 venv/*
+src/keboola_storage_api/__pycache__/*
+src/workspace_connection/__pycache__/*
+secrets.toml
