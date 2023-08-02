@@ -3,3 +3,4 @@ langchain
 openai
 snowflake-sqlalchemy
 streamlit-chat
+kbcstorage
