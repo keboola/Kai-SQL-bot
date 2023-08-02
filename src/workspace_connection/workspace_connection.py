@@ -1,8 +1,6 @@
 import streamlit as st
 import snowflake.connector
 
-
-
 def snowflake_connection_user_input():
     st.session_state['user']=st.sidebar.text_input('Snowflake Username', 'Enter Snowflake Username')
     st.session_state['password']=st.sidebar.text_input('Snowflake Password', 'Enter Snowflake Password', type="password")
