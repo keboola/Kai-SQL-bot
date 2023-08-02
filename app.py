@@ -31,7 +31,6 @@ role_name = st.secrets["role_name"]
 
 conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
 db = SQLDatabase.from_uri(conn_string)
-st.write("DB===", db)
 toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
 
