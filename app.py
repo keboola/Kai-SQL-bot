@@ -1,9 +1,12 @@
 import streamlit as st
+from streamlit_chat import message
+
 
 from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
+from langchain.chat_models import ChatOpenAI
 from langchain.agents import AgentExecutor
 import os
 
@@ -29,18 +32,41 @@ role_name = st.secrets["role_name"]
 conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
 db = SQLDatabase.from_uri(conn_string)
 st.write("DB===", db)
-toolkit = SQLDatabaseToolkit(llm=OpenAI(temperature=0), db=db)
+toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
 
 agent_executor = create_sql_agent(
-    llm=OpenAI(temperature=0),
+    llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0),
     toolkit=toolkit,
     verbose=True
 )
 
 
-question = st.text_input("Ask a question about your data", key="question")
-if st.button("Ask"):
-    answer = agent_executor.run(question)
-    st.write(answer)
+if "generated" not in st.session_state:
+    st.session_state["generated"] = []
+
+if "past" not in st.session_state:
+    st.session_state["past"] = []
+
+
+def get_text():
+    input_text = st.text_input("You: ", "Hello, what are you capable of doing?", key="input")
+    return input_text
+
+
+user_input = get_text()
+
+if user_input:
+    output = agent_executor.run(input=user_input)
+
+    st.session_state.past.append(user_input)
+    st.session_state.generated.append(output)
+
+if st.session_state["generated"]:
+
+    for i in range(len(st.session_state["generated"]) - 1, -1, -1):
+        message(st.session_state["generated"][i], key=str(i))
+        message(st.session_state["past"][i], is_user=True, key=str(i) + "_user")
+
+
     
