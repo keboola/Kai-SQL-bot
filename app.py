@@ -28,6 +28,8 @@ if conn_method == "Snowflake Database Connection":
     connect_to_snowflake()
     conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
     db = SQLDatabase.from_uri(conn_string)
+    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
+
 else:
     st.write("Using Demo Database") 
     account_identifier = st.secrets["account_identifier"]
@@ -70,6 +72,8 @@ if user_input:
     st.session_state.past.append(user_input)
     st.session_state.generated.append(output)
 
+    log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
+
 if st.session_state["generated"]:
 
     for i in range(len(st.session_state["generated"]) - 1, -1, -1):
@@ -78,3 +82,4 @@ if st.session_state["generated"]:
 
 
     
+   
