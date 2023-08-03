@@ -30,18 +30,6 @@ os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
 conn_method = st.selectbox("Connection Method", ["Demo Database", "Snowflake Database Connection"])
 
-from sqlalchemy import (
-    create_engine,
-    MetaData,
-    Table,
-    Column,
-    String,
-    Integer,
-    select,
-    column,
-)
-
-
 if conn_method == "Snowflake Database Connection":
     connect_to_snowflake()
     conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
@@ -58,9 +46,9 @@ else:
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
 
-llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0)
+#llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0)
 
-service_context = ServiceContext.from_defaults(llm=llm)
+#service_context = ServiceContext.from_defaults(llm=llm)
 
 toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
