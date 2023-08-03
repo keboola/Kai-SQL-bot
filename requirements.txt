@@ -1,5 +1,6 @@
 streamlit
 langchain
+llama-index
 openai
 snowflake-sqlalchemy
 streamlit-chat

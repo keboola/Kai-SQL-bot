@@ -10,18 +10,36 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents import AgentExecutor
 import os
 
+from llama_index import SQLDatabase as llamaSQLDatabase, ServiceContext
+from llama_index.indices.struct_store import (
+    NLSQLTableQueryEngine,
+    SQLTableRetrieverQueryEngine,
+)
+
+
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
 from src.keboola_storage_api.connection import _add_connection_form, add_keboola_table_selection
 from sqlalchemy.dialects import registry
 registry.load("snowflake")
 
 st.set_page_config(page_title="Kai SQL Bot Demo", page_icon=":robot:")
-#st.image('static/keboola_logo.png', width=400)
+st.image('/home/appuser/app/static/keboola_logo.png', width=400)
 st.header("Kai SQL Bot Demo ")
 
 os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
 
 conn_method = st.selectbox("Connection Method", ["Demo Database", "Snowflake Database Connection"])
+
+from sqlalchemy import (
+    create_engine,
+    MetaData,
+    Table,
+    Column,
+    String,
+    Integer,
+    select,
+    column,
+)
 
 
 if conn_method == "Snowflake Database Connection":
@@ -39,6 +57,10 @@ else:
     role_name = st.secrets["role_name"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
+
+llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0)
+
+service_context = ServiceContext.from_defaults(llm=llm)
 
 toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
@@ -75,6 +97,4 @@ if st.session_state["generated"]:
     for i in range(len(st.session_state["generated"]) - 1, -1, -1):
         message(st.session_state["generated"][i], key=str(i))
         message(st.session_state["past"][i], is_user=True, key=str(i) + "_user")
-
-
-    
+   
