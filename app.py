@@ -7,13 +7,14 @@ from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
 from langchain.chat_models import ChatOpenAI
+from langchain.agents.agent_types import AgentType
 from langchain.agents import AgentExecutor
 import os
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
 
-from sqlalchemy.dialects import registry
-registry.load("snowflake")
+#from sqlalchemy.dialects import registry
+#registry.load("snowflake")
 
 st.set_page_config(page_title="Kai SQL Bot Demo", page_icon=":robot:")
 path = os.path.dirname(os.path.abspath(__file__))
@@ -42,14 +43,16 @@ else:
     role_name = st.secrets["role_name"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
-
-toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
+    toolkit = SQLDatabaseToolkit(llm=OpenAI(temperature=0), db=db)
 
 
 agent_executor = create_sql_agent(
     llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0),
     toolkit=toolkit,
-    verbose=True
+    verbose=True,
+    handle_parsing_errors=True,
+    max_iterations=100,
+    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION
 )
 
 
@@ -73,7 +76,7 @@ if user_input:
     st.session_state.past.append(user_input)
     st.session_state.generated.append(output)
 
-    log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
+    #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
 if st.session_state["generated"]:
 
