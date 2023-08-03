@@ -11,7 +11,7 @@ from langchain.agents import AgentExecutor
 import os
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
-from src.keboola_storage_api.connection import _add_connection_form, add_keboola_table_selection
+
 from sqlalchemy.dialects import registry
 registry.load("snowflake")
 
