@@ -16,7 +16,8 @@ from sqlalchemy.dialects import registry
 registry.load("snowflake")
 
 st.set_page_config(page_title="Kai SQL Bot Demo", page_icon=":robot:")
-st.image('static/keboola_logo.png', width=400)
+path = os.path.dirname(os.path.abspath(__file__))
+st.image(path+'/static/keboola_logo.png', width=400)
 st.header("Kai SQL Bot Demo ")
 
 os.environ["OPENAI_API_KEY"] = st.secrets["OPENAI_API_KEY"]
