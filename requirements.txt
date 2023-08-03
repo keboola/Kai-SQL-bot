@@ -1,6 +1,5 @@
 streamlit
 langchain
-llama-index
 openai
 SQLAlchemy==1.4.17
 snowflake-sqlalchemy==1.2.4
