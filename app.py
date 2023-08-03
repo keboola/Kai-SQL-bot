@@ -10,12 +10,6 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents import AgentExecutor
 import os
 
-from llama_index import SQLDatabase as llamaSQLDatabase, ServiceContext
-from llama_index.indices.struct_store import (
-    NLSQLTableQueryEngine,
-    SQLTableRetrieverQueryEngine,
-)
-
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
 from src.keboola_storage_api.connection import _add_connection_form, add_keboola_table_selection
@@ -45,12 +39,13 @@ else:
     role_name = st.secrets["role_name"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
+    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
+
 
 #llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0)
 
 #service_context = ServiceContext.from_defaults(llm=llm)
 
-toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
 
 agent_executor = create_sql_agent(
