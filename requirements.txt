@@ -2,6 +2,7 @@ streamlit
 langchain
 llama-index
 openai
-snowflake-sqlalchemy
+SQLAlchemy==1.4.17
+snowflake-sqlalchemy==1.2.4
 streamlit-chat
 kbcstorage
