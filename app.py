@@ -79,7 +79,7 @@ if user_input:
 
     log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
-    r = requests.post(st.secrets["url"], data=log_data, headers=headers)
+    r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 
 
 if st.session_state["generated"]:
