@@ -10,7 +10,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.agents import AgentExecutor
 import os
-
+import requests
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
 
 #from sqlalchemy.dialects import registry
@@ -67,6 +67,7 @@ def get_text():
     input_text = st.text_input("You: ", "Hello, what are you capable of doing?", key="input")
     return input_text
 
+headers = {'Content-Type': 'application/json'}
 
 user_input = get_text()
 
@@ -76,7 +77,10 @@ if user_input:
     st.session_state.past.append(user_input)
     st.session_state.generated.append(output)
 
-    #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
+    log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
+
+    r = requests.post(st.secrets["url"], data=log_data, headers=headers)
+
 
 if st.session_state["generated"]:
 
