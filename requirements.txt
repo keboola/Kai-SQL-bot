@@ -1,9 +1,9 @@
-streamlit==1.4.0
+#streamlit==1.4.0
 langchain
 SQLAlchemy==1.4.49
 openai==0.27.8
 snowflake-sqlalchemy==1.4.7
 #snowflake-snowpark-python[pandas]==1.5.1
-altair<5
-click<=8.0.4
-jinja2==3.0.0
+#altair<5
+#click<=8.0.4
+#jinja2==3.0.0
