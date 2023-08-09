@@ -57,3 +57,12 @@ add_slider = st.sidebar.slider(
     'Select a range of values',
     0.0, 100.0, (25.0, 75.0)
 )
+
+streamlit==1.18
+streamlit-authenticator==0.2.1
+hydralit-components==1.0.10
+git+https://github.com/keboola/sapi-python-client.git
+st-click-detector==0.1
+vega_datasets==0.9.0
+pandas==1.2.5
+altair==4.1.0
