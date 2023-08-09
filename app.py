@@ -14,7 +14,7 @@ from langchain.agents import AgentExecutor
 import os
 import requests
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
-
+import sqlalchemy
 #from sqlalchemy.dialects import registry
 #registry.load("snowflake")
 
@@ -55,59 +55,7 @@ else:
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
-custom_prefix = """You are an agent designed to interact with a SQL database.
-\nGiven an input question, create a syntactically correct {dialect} query 
-to run, then look at the results of the query and return the answer.\n
 
-You have access to a database with the following tables: \n
-
-Unless the user specifies a specific number of examples they wish to obtain,
- always limit your query to at most {top_k} results.\n
- You can order the results by a relevant column to return the most 
- interesting examples in the database.\nNever query for all the columns 
- from a specific table, only ask for the relevant columns given the question.\n
- You have access to tools for interacting with the database.\n
- Only use the below tools. Only use the information returned by the 
- below tools to construct your final answer.\n
- You MUST double check your query before executing it. 
- If you get an error while executing a query, rewrite the query and try again.\n\n
- 
- DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the database.\n\n
- 
- If the question does not seem related to the database, 
- just return "I don\'t know" as the answer.\n"""
-
-custom_suffix = """
-
-In your answer, always include the following:
-    1. Most importantly, the SQL query that was used to generate the output
-    2. The output of the SQL query IN THE FORM OF A TABLE. 
-    3. A description of the output of the SQL query
-
-IMPORTANT: For generating the table output, use markdown. 
-
-For example, if I ask the following question:
-    "What is the total number of users in the database?"
-
-You should answer with the following:
-
-    ```sql
-    SELECT COUNT(*) FROM users;
-    ```
-
-    | COUNT(*) |
-    |----------|
-    | 100      |
-
-    The total number of users in the database is 100.
-    
-    'Begin!\n\nQuestion: {input}\nThought:{agent_scratchpad}'
-    
-"""
-
-custom_format_instructions = """
-format_instructions: str = 'Use the following format:\n\nQuestion: the input question you must answer\nThought: you should always think about what to do\nAction: the action to take, should be one of [{tool_names}]\nAction Input: the input to the action\nObservation: the result of the action\n... (this Thought/Action/Action Input/Observation can repeat N times)\nThought: I now know the final answer\nFinal Answer: the final answer to the original input question'
-"""
 agent_executor = create_sql_agent(
     llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
     toolkit=toolkit,
@@ -171,16 +119,39 @@ user_input = get_text()
 if user_input:
     output = agent_executor.run(input=GEN_SQL+user_input)
     
+    sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+    
+    if sql_match:
+        sql = sql_match.group(1)
+        # Execute the SQL query
+        try:
+            #connect to snowflake using sqlalchemy engine and execute the sql query
+            engine = sqlalchemy.create_engine(conn_string)
+            df = engine.execute(sql).fetchall()
+            #st.write(db.run(sql))
+            ##display the results as a dataframe
+
+
+        except Exception as e:
+            st.write(e)
+            st.write("Please make sure your SQL query is valid")
+
+    
 
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.messages.append({"role": "Kai", "content": output})
+    if sql_match:
+        st.session_state.messages.append({"role": "result", "content": df})
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            if message["role"] == "result":
+                st.dataframe(message["content"])
+            else:
+                st.markdown(message["content"])
 
     log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
     r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 
-
+    
