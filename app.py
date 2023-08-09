@@ -151,7 +151,10 @@ if "messages" not in st.session_state:
 with st.container():
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            if message["role"] == "result":
+                st.dataframe(message["content"])
+            else:
+                st.markdown(message["content"])
 
     user_input = st.chat_input(translate("ask_a_question", language))
 
