@@ -3,3 +3,4 @@ langchain
 openai
 snowflake-sqlalchemy
 streamlit-chat
+snowflake-snowpark-python[pandas]==1.5.1
