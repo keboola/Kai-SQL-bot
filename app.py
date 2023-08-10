@@ -1,43 +1,26 @@
 import openai
 import re
 import streamlit as st
-#from streamlit_chat import message
- 
+import os
+import requests
+import sqlalchemy
 
-from langchain.agents import create_sql_agent
+from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
-from langchain.agents import AgentExecutor
 from langchain.callbacks import StreamlitCallbackHandler
 
-#from streamlit_agent.callbacks.capturing_callback_handler import playback_callbacks
-#from streamlit_agent.clear_results import with_clear_container
 
-import os
-import requests
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
-import sqlalchemy
-#from sqlalchemy.dialects import registry
-#registry.load("snowflake")
 
-
-#st.set_page_config(page_title="Kai SQL Bot Demo", page_icon=":robot:")
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.image(image_path+'/static/keboola_logo.png', width=400)
 st.header("Kai SQL Bot Demo ")
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
-#if "messages" not in st.session_state:
-#    # system prompt includes table information, rules, and prompts the LLM to produce
-#    # a welcome message to the user.
-#    st.session_state.messages = [{"role": "system", "content": get_system_prompt()}]
-#
-## Prompt for user input and save
-#if prompt := st.chat_input():
-#    st.session_state.messages.append({"role": "user", "content": prompt})
 
 conn_method = st.selectbox("Connection Method", ["Demo Database", "Snowflake Database Connection"])
 
@@ -108,7 +91,6 @@ Now to get started, answer the following question:
 
 """
 
-
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -152,6 +134,7 @@ if user_input:
                 #connect to snowflake using sqlalchemy engine and execute the sql query
                 engine = sqlalchemy.create_engine(conn_string)
                 df = engine.execute(sql).fetchall()
+                st.dataframe(df)
                 st.session_state.messages.append({"role": "result", "content": df})
                 #st.write(db.run(sql))
                 ##display the results as a dataframe
