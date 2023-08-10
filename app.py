@@ -104,25 +104,30 @@ headers = {'Content-Type': 'application/json'}
 
 user_input = get_text()
 
-st_callback = StreamlitCallbackHandler(st.container())
 
 
 if user_input:
+    initial_input = {"role": "user", "content": user_input}
+    st.session_state.messages.append(initial_input)
+    with st.chat_message(initial_input["role"]):
+        st.markdown(initial_input["content"])
+
+    with st.chat_message("Kai"):
+        st.markdown("Kai is typing...")
+        st_callback = StreamlitCallbackHandler(st.container())
+
     output = agent_executor.run(input=GEN_SQL+user_input, callbacks=[st_callback])
     
     sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
     
     
 
-    st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.messages.append({"role": "Kai", "content": output})
+    
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            if message["role"] == "result":
-                st.dataframe(message["content"])
-            else:
-                st.markdown(message["content"])
+            st.markdown(message["content"])
 
 
     if sql_match:
@@ -153,3 +158,8 @@ if user_input:
     r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 
     
+    if st.button("clear chat"):
+        for key in st.session_state.keys():
+            del st.session_state[key]
+
+        
