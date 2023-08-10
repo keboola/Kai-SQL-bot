@@ -11,6 +11,11 @@ from langchain.llms.openai import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.agents import AgentExecutor
+from langchain.callbacks import StreamlitCallbackHandler
+
+#from streamlit_agent.callbacks.capturing_callback_handler import playback_callbacks
+#from streamlit_agent.clear_results import with_clear_container
+
 import os
 import requests
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
@@ -18,7 +23,8 @@ import sqlalchemy
 #from sqlalchemy.dialects import registry
 #registry.load("snowflake")
 
-st.set_page_config(page_title="Kai SQL Bot Demo", page_icon=":robot:")
+
+#st.set_page_config(page_title="Kai SQL Bot Demo", page_icon=":robot:")
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.image(image_path+'/static/keboola_logo.png', width=400)
 st.header("Kai SQL Bot Demo ")
@@ -116,32 +122,18 @@ headers = {'Content-Type': 'application/json'}
 
 user_input = get_text()
 
+st_callback = StreamlitCallbackHandler(st.container())
+
+
 if user_input:
-    output = agent_executor.run(input=GEN_SQL+user_input)
+    output = agent_executor.run(input=GEN_SQL+user_input, callbacks=[st_callback])
     
     sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
     
-    if sql_match:
-        sql = sql_match.group(1)
-        # Execute the SQL query
-        try:
-            #connect to snowflake using sqlalchemy engine and execute the sql query
-            engine = sqlalchemy.create_engine(conn_string)
-            df = engine.execute(sql).fetchall()
-            #st.write(db.run(sql))
-            ##display the results as a dataframe
-
-
-        except Exception as e:
-            st.write(e)
-            st.write("Please make sure your SQL query is valid")
-
     
 
     st.session_state.messages.append({"role": "user", "content": user_input})
     st.session_state.messages.append({"role": "Kai", "content": output})
-    if sql_match:
-        st.session_state.messages.append({"role": "result", "content": df})
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -149,6 +141,29 @@ if user_input:
                 st.dataframe(message["content"])
             else:
                 st.markdown(message["content"])
+
+
+    if sql_match:
+        sql = sql_match.group(1)
+        #st.write(sql)
+        # Execute the SQL query
+        if st.button("Execute SQL (warning still buggy)"):
+            try:
+                #connect to snowflake using sqlalchemy engine and execute the sql query
+                engine = sqlalchemy.create_engine(conn_string)
+                df = engine.execute(sql).fetchall()
+                st.session_state.messages.append({"role": "result", "content": df})
+                #st.write(db.run(sql))
+                ##display the results as a dataframe
+                for message in st.session_state.messages:
+                    with st.chat_message(message["role"]):
+                        if message["role"] == "result":
+                            st.dataframe(message["content"])
+
+            except Exception as e:
+                st.write(e)
+                st.write("Please make sure your SQL query is valid")
+
 
     log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
