@@ -17,13 +17,13 @@ from langchain.callbacks import StreamlitCallbackHandler
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
 
 image_path = os.path.dirname(os.path.abspath(__file__))
-st.image(image_path+'/static/keboola_logo.png', width=400)
+st.set_page_config(page_title="KAI SQL Bot", page_icon=":robot_face:")
+st.image(image_path+'/static/keboola_logo.png', width=200)
 st.header("Kai SQL Bot Demo ")
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
 
 conn_method = st.selectbox("Connection Method", ["Demo Database", "Snowflake Database Connection"])
-
 
 if conn_method == "Snowflake Database Connection":
     connect_to_snowflake()
@@ -79,6 +79,9 @@ you MUST MUST make use of <tableName> and <columns> are already provided in the 
 6. DO NOT put numerical at the very front of sql variable.
 </rules>
 
+Note: In the generated SQL queries, wrap column names and table names with double quotes whereever applicable, e.g.,
+select "column_name" from "tableName";
+
 Don't forget to use "ilike %keyword%" for fuzzy match queries (especially for variable_name column)
 and wrap the generated sql code with ``` sql code markdown in this format e.g:
 ```sql
@@ -92,74 +95,95 @@ Now to get started, answer the following question:
 """
 
 # Initialize chat history
+
 if "messages" not in st.session_state:
     st.session_state.messages = []
 # Display chat messages from history on app rerun
 
-def get_text():
-    input_text = st.chat_input("Ask a question")
-    return input_text
-
-headers = {'Content-Type': 'application/json'}
-
-user_input = get_text()
 
 
+with st.container():
+    def get_text():
+        input_text = st.chat_input("Ask a question")
+        return input_text
 
-if user_input:
-    initial_input = {"role": "user", "content": user_input}
-    st.session_state.messages.append(initial_input)
-    with st.chat_message(initial_input["role"]):
-        st.markdown(initial_input["content"])
+    headers = {'Content-Type': 'application/json'}
+    user_input = get_text()
 
-    with st.chat_message("Kai"):
-        st.markdown("Kai is typing...")
-        st_callback = StreamlitCallbackHandler(st.container())
 
-    output = agent_executor.run(input=GEN_SQL+user_input, callbacks=[st_callback])
-    
-    sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-    
-    
+    if user_input:
+        initial_input = {"role": "user", "content": user_input}
+        st.session_state.messages.append(initial_input)
+    #with st.chat_message(initial_input["role"]):
+    #    st.markdown(initial_input["content"])
 
-    st.session_state.messages.append({"role": "Kai", "content": output})
-    
+        with st.chat_message("Kai"):
+            st.markdown("Kai is typing...")
+            st_callback = StreamlitCallbackHandler(st.container())
+
+        output = agent_executor.run(input=GEN_SQL+user_input, callbacks=[st_callback])
+        st.session_state.messages.append({"role": "Kai", "content": output})
+
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+with st.container():    
+    last_output_message = []
+    last_user_message = []
+    for message in reversed(st.session_state.messages):
+        if message["role"] == "Kai":
+            last_output_message = message
+            break
+    for message in reversed(st.session_state.messages):
+        if message["role"] =="user":
+            last_user_message = message
+            break  
+    if last_user_message:        
+        if st.button("Execute SQL"):       
+            #st.write(sql)
+            # Execute the SQL query
+            if last_user_message["content"]:
+                sql_match = re.search(r"```sql\n(.*)\n```", last_output_message["content"], re.DOTALL)    
 
-    if sql_match:
-        sql = sql_match.group(1)
-        #st.write(sql)
-        # Execute the SQL query
-        if st.button("Execute SQL (warning still buggy)"):
-            try:
-                #connect to snowflake using sqlalchemy engine and execute the sql query
-                engine = sqlalchemy.create_engine(conn_string)
-                df = engine.execute(sql).fetchall()
-                st.dataframe(df)
-                st.session_state.messages.append({"role": "result", "content": df})
-                #st.write(db.run(sql))
-                ##display the results as a dataframe
-                for message in st.session_state.messages:
-                    with st.chat_message(message["role"]):
-                        if message["role"] == "result":
-                            st.dataframe(message["content"])
+                if sql_match:
+                    sql = sql_match.group(1)
+                    st.write(sql)
 
-            except Exception as e:
-                st.write(e)
-                st.write("Please make sure your SQL query is valid")
+                    try:
+                        #connect to snowflake using sqlalchemy engine and execute the sql query
+                        engine = sqlalchemy.create_engine(conn_string)
+                        df = engine.execute(sql).fetchall()
+                        st.dataframe(df)
+                        st.session_state.messages.append({"role": "result", "content": df})
+                        st.write(db.run(sql))
+                        ##display the results as a dataframe
+                        for message in st.session_state.messages:
+                            with st.chat_message(message["role"]):
+                                if message["role"] == "result":
+                                    st.dataframe(message["content"])
+
+                    except Exception as e:
+                        st.write(e)
+                        st.write("Please make sure your SQL query is valid")
+
+            #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
+
+            #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+
+        if st.button("Regenerate Response"):
+            st_callback = StreamlitCallbackHandler(st.container())
+            output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
+            sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+            st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
+            st.session_state.messages.append({"role": "Kai", "content": output})
+            with st.chat_message("Kai"):
+                st.markdown(output)
+
+        if st.button("Clear chat"):
+            for key in st.session_state.keys():
+                del st.session_state[key]
 
 
-    log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
-
-    r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
-
-    
-    if st.button("clear chat"):
-        for key in st.session_state.keys():
-            del st.session_state[key]
-
-        
+                
