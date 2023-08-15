@@ -86,6 +86,9 @@ Nezapomeňte použít "ilike %keyword%" pro dotazy na fuzzy match (zejména pro 
 a zabalte vygenerovaný sql kód do markdownu v tomto formátu např.
 ```sql
 (select 1) union (select 2)
+
+Ve vygenerovaných SQL dotazech obalte  názvy sloupců a tabulek do dvojitých uvozovek, kdykoli je to možné, např.
+select "column_name" from "tableName";
 ```
 U každé otázky od uživatele nezapomeňte do odpovědi zahrnout SQL dotaz.
 Odpověď pište v českém jazyce.
@@ -134,38 +137,39 @@ if option == 'English':
     
 # Initialize chat history
 
+# Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
-# Display chat messages from history on app rerun
 
-
-
+# Display chat messages from history
 with st.container():
-    def get_text():
-        input_text = st.chat_input("Ask a question")
-        return input_text
-
-    headers = {'Content-Type': 'application/json'}
-    user_input = get_text()
-
-
-    if user_input:
-        initial_input = {"role": "user", "content": user_input}
-        st.session_state.messages.append(initial_input)
-    #with st.chat_message(initial_input["role"]):
-    #    st.markdown(initial_input["content"])
-
-        with st.chat_message("Kai"):
-            st.markdown("Kai is typing...")
-            st_callback = StreamlitCallbackHandler(st.container())
-
-        output = agent_executor.run(input=GEN_SQL+user_input, callbacks=[st_callback])
-        st.session_state.messages.append({"role": "Kai", "content": output})
-
-
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
+
+    user_input = st.chat_input("Ask a question")
+
+    if user_input:
+        # Add user message to the chat
+        with st.chat_message("user"):
+            st.markdown(user_input)
+
+        # Add user message to session state
+        st.session_state.messages.append({"role": "user", "content": user_input})
+
+        # Display "Kai is typing..."
+        with st.chat_message("Kai"):
+            st.markdown("Kai is typing...")
+
+        st_callback = StreamlitCallbackHandler(st.container())
+        output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
+        
+        # Add Kai's message to session state
+        st.session_state.messages.append({"role": "Kai", "content": output})
+
+        # Display Kai's message
+        with st.chat_message("Kai"):
+            st.markdown(output)
 
 with st.container():    
     last_output_message = []
