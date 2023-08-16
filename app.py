@@ -186,12 +186,18 @@ with st.container():
         if st.button("Execute SQL"):       
             #st.write(sql)
             # Execute the SQL query
-            if last_user_message["content"]:
-                sql_match = re.search(r"```sql\n(.*)\n```", last_output_message["content"], re.DOTALL)    
+             if last_user_message["content"]:
+                 # uncomment this code if you want to run only the first query
+                """sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
 
                 if sql_match:
                     sql = sql_match.group(1)
-                    st.write(sql)
+                    st.write(sql) """
+                # this will find all the queries and run all of them
+                sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
+
+                for sql in sql_matches:
+                    st.write(sql)    
 
                     try:
                         #connect to snowflake using sqlalchemy engine and execute the sql query
