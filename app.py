@@ -4,6 +4,7 @@ import streamlit as st
 import os
 import requests
 import sqlalchemy
+import json
 
 from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
@@ -23,16 +24,28 @@ st.header("Kai SQL Bot Demo ")
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
 
-conn_method = st.selectbox("Connection Method", ["Demo Database", "Snowflake Database Connection"])
+def translate(key, lang="English"):
+    # Define the path to the JSON file inside the 'languages' folder
+    file_path = os.path.join("languages", f"{lang.lower()}.json")
 
-if conn_method == "Snowflake Database Connection":
+    with open(file_path, "r") as file:
+        translations = json.load(file)
+        return translations.get(key, key)  # Return key if translation not found.
+
+language = st.selectbox("Language/Jazyk", ["English", "Czech"]) 
+
+snfl_db = translate("snfl_db", language)   
+
+conn_method = st.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db])
+
+if conn_method == snfl_db:
     connect_to_snowflake()
     conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-0613', temperature=0), db=db)
 
 else:
-    st.write("Using Demo Database") 
+    st.write(translate("using_demo_db", language)) 
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
@@ -43,10 +56,6 @@ else:
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
-
-option = st.selectbox(
-    'Language Selection',
-    ('Czech', 'English'))
 
   
 
@@ -130,9 +139,9 @@ Now to get started, answer the following question:
 
 """
 
-if option == 'Czech':
+if language == 'Czech':
     GEN_SQL = CZ_GEN_SQL
-if option == 'English':
+if language == 'English':
     GEN_SQL = ENG_GEN_SQL  
     
 # Initialize chat history
@@ -147,7 +156,7 @@ with st.container():
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    user_input = st.chat_input("Ask a question")
+    user_input = st.chat_input(translate("ask_a_question", language))
 
     if user_input:
         # Add user message to the chat
@@ -159,7 +168,7 @@ with st.container():
 
         # Display "Kai is typing..."
         with st.chat_message("Kai"):
-            st.markdown("Kai is typing...")
+            st.markdown(translate("typing", language))
 
         st_callback = StreamlitCallbackHandler(st.container())
         output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
@@ -183,16 +192,17 @@ with st.container():
             last_user_message = message
             break  
     if last_user_message:        
-        if st.button("Execute SQL"):       
+        if st.button(translate("execute_sql", language)):       
             #st.write(sql)
             # Execute the SQL query
              if last_user_message["content"]:
-                 # uncomment this code if you want to run only the first query
-                """sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
+                # uncomment this code if you want to run only the first query
+                #sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
 
-                if sql_match:
-                    sql = sql_match.group(1)
-                    st.write(sql) """
+                #if sql_match:
+                #    sql = sql_match.group(1)
+                #    st.write(sql) 
+                
                 # this will find all the queries and run all of them
                 sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
 
@@ -214,13 +224,13 @@ with st.container():
 
                     except Exception as e:
                         st.write(e)
-                        st.write("Please make sure your SQL query is valid")
+                        st.write(translate("valid_query", language))
 
             #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 
-        if st.button("Regenerate Response"):
+        if st.button(translate("regenerate_response", language)):
             st_callback = StreamlitCallbackHandler(st.container())
             output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
             sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
@@ -229,7 +239,7 @@ with st.container():
             with st.chat_message("Kai"):
                 st.markdown(output)
 
-        if st.button("Clear chat"):
+        if st.button(translate("clear_chat", language)):
             for key in st.session_state.keys():
                 del st.session_state[key]
 
