@@ -26,7 +26,7 @@ openai.api_key = st.secrets.OPENAI_API_KEY
 
 def translate(key, lang="English"):
     # Define the path to the JSON file inside the 'languages' folder
-    file_path = os.path.join("languages", f"{lang.lower()}.json")
+    file_path = os.path.join(image_path+"/languages", f"{lang.lower()}.json")
 
     with open(file_path, "r") as file:
         translations = json.load(file)
