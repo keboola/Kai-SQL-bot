@@ -125,8 +125,8 @@ Ensure that you generate only one SQL code for Snowflake, not multiple.
 You should only use the table columns provided in <columns>, and the table provided in <tableName>, you MUST NOT create imaginary table names.
 DO NOT start SQL variables with numerals.
 </rules>
-Note: In the generated SQL queries, wrap column names and table names with double quotes wherever applicable, e.g.,
-select "column_name" from "tableName";
+Note: Don't automatically convert the column_name and tableName to lower case and In the generated SQL queries, wrap column names and table names with double quotes wherever according to snowflake SQL, e.g.,
+select "column_name" from "tableName" in case of lowercase;
 
 Do not forget to use "ilike %keyword%" for fuzzy match queries (especially for the variable_name column)
 and wrap the generated SQL code with markdown code formatting tags in this format, e.g.
