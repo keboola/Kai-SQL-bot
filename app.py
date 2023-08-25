@@ -6,7 +6,13 @@ import requests
 import sqlalchemy
 import json
 
-from langchain.agents import create_sql_agent, AgentExecutor
+import sqlite3
+import csv
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+
+from langchain.agents import create_sql_agent, create_csv_agent, AgentExecutor
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
@@ -55,10 +61,11 @@ else:
     role_name = st.secrets["role_name"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
+    csvFile = "output.csv"
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
-  
 
+#!----------------------------------
 agent_executor = create_sql_agent(
     llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
     toolkit=toolkit,
@@ -70,6 +77,14 @@ agent_executor = create_sql_agent(
     #suffix=custom_suffix,
     #format_instructions=custom_format_instructions
 )
+
+agent = create_csv_agent(
+    ChatOpenAI(model="gpt-3.5-turbo-0613", temperature=0),
+    "output.csv",
+    verbose=True,
+    agent_type=AgentType.OPENAI_FUNCTIONS,
+)
+#!----------------------------------
 
 
 CZ_GEN_SQL = """
@@ -169,8 +184,10 @@ with st.container():
             st.markdown(translate("typing", language))
 
         st_callback = StreamlitCallbackHandler(st.container())
+    #!----------------------------
         output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
-        
+    #!----------------------------
+ 
         # Add Kai's message to session state
         st.session_state.messages.append({"role": "Kai", "content": output})
 
@@ -189,7 +206,7 @@ with st.container():
         if message["role"] =="user":
             last_user_message = message
             break  
-    if last_user_message:        
+    if last_user_message:  #executes SQL button      
         if st.button(translate("execute_sql", language)):       
             #st.write(sql)
             # Execute the SQL query
@@ -211,14 +228,17 @@ with st.container():
                         #connect to snowflake using sqlalchemy engine and execute the sql query
                         engine = sqlalchemy.create_engine(conn_string)
                         df = engine.execute(sql).fetchall()
+                        NateDf = pd.DataFrame(df) #!
                         st.dataframe(df)
                         st.session_state.messages.append({"role": "result", "content": df})
                         st.write(db.run(sql))
                         ##display the results as a dataframe
+                        NateDf.to_csv("output.csv", index=False) #!
                         for message in st.session_state.messages:
                             with st.chat_message(message["role"]):
                                 if message["role"] == "result":
                                     st.dataframe(message["content"])
+                                    
 
                     except Exception as e:
                         st.write(e)
@@ -227,19 +247,32 @@ with st.container():
             #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+#!-------------------------------------       
+    if last_user_message:  #executes render button      
+        if st.button(translate("Visualize Data", language)):
+            agent.run("visualize the data provided in the csv file. Return only one graph that makes the most sense")
+            try:
+                fig = plt.gcf()
+                st.pyplot(fig)
+                
+            except Exception as e:
+                st.write(f"Error excecuting code: {e}")
+                st.write("valid_graph")
 
-        if st.button(translate("regenerate_response", language)):
-            st_callback = StreamlitCallbackHandler(st.container())
-            output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
-            sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-            st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
-            st.session_state.messages.append({"role": "Kai", "content": output})
-            with st.chat_message("Kai"):
-                st.markdown(output)
+#!-------------------------------------
 
-        if st.button(translate("clear_chat", language)):
-            for key in st.session_state.keys():
-                del st.session_state[key]
+    if st.button(translate("regenerate_response", language)):
+        st_callback = StreamlitCallbackHandler(st.container())
+        output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
+        sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+        st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
+        st.session_state.messages.append({"role": "Kai", "content": output})
+        with st.chat_message("Kai"):
+            st.markdown(output)
+
+    if st.button(translate("clear_chat", language)):
+        for key in st.session_state.keys():
+            del st.session_state[key]
 
 
                 
