@@ -64,10 +64,7 @@ else:
     db = SQLDatabase.from_uri(conn_string)
     csvFile = "output.csv"
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
-
-
-
-llm=ChatOpenAI(model='gpt-4-0613', temperature=0)
+    llm=ChatOpenAI(model='gpt-4-0613', temperature=0)
 
 #!----------------------------------
 SQL_Agent = create_sql_agent(
