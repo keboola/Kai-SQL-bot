@@ -12,13 +12,14 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from langchain.agents import create_sql_agent, create_csv_agent, AgentExecutor
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit
+from langchain.agents import create_sql_agent, AgentExecutor, initialize_agent, Tool, AgentType
+from langchain.agents.agent_toolkits import SQLDatabaseToolkit, create_python_agent, create_csv_agent
 from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
+from langchain.tools.python.tool import PythonREPLTool
 
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
@@ -65,9 +66,12 @@ else:
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
 
+
+llm=ChatOpenAI(model='gpt-4-0613', temperature=0)
+
 #!----------------------------------
-agent_executor = create_sql_agent(
-    llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
+SQL_Agent = create_sql_agent(
+    llm=llm,
     toolkit=toolkit,
     verbose=True,
     handle_parsing_errors=True,
@@ -77,13 +81,42 @@ agent_executor = create_sql_agent(
     #suffix=custom_suffix,
     #format_instructions=custom_format_instructions
 )
-
-agent = create_csv_agent(
-    ChatOpenAI(model="gpt-3.5-turbo-0613", temperature=0),
-    "output.csv",
-    verbose=True,
-    agent_type=AgentType.OPENAI_FUNCTIONS,
+python_agent = create_python_agent(
+    llm,
+    tool=PythonREPLTool(),
+    verbose=True
 )
+
+current_dir = os.path.dirname(__file__)
+data_file_path = os.path.join(current_dir, "output.csv")
+
+csv_agent = create_csv_agent(
+    llm,
+    path=data_file_path,
+    verbose=True
+)
+
+
+tools = [
+    Tool(
+        name = "SQL",
+        func=SQL_Agent.run,
+        description="useful for when you need to answer questions about sql code. write excecuted query results to the output.csv file"
+    ),
+    Tool(
+        name="Python",
+        func=python_agent.run,
+        description="Useful when questions are asked about python, or the user wants you to excecute python"
+    ),
+    Tool(
+        name="CSV",
+        func=csv_agent.run,
+        description="useful for when you need to answer questions about a CSV file, including data visualizations."
+    )
+]
+
+agent = initialize_agent(tools, llm, agent=AgentType.OPENAI_FUNCTIONS, verbose=True, db=db)
+
 #!----------------------------------
 
 
@@ -185,7 +218,7 @@ with st.container():
 
         st_callback = StreamlitCallbackHandler(st.container())
     #!----------------------------
-        output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
+        output = agent.run(input=GEN_SQL + user_input, callbacks=[st_callback])
     #!----------------------------
  
         # Add Kai's message to session state
