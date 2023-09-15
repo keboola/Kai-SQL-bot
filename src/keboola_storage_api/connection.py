@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple
 from kbcstorage.client import Client
 
 KBC_URLS = ['https://connection.keboola.com/',
-            'https://onnection.north-europe.azure.keboola.com/',
+            'https://connection.north-europe.azure.keboola.com/',
             'https://connection.eu-central-1.keboola.com/']
 
 
@@ -31,7 +31,7 @@ def add_keboola_table_selection():
 def _add_connection_form():
     with st.sidebar.form("Connection Details"): 
         connection_url = st.selectbox('Connection URL', KBC_URLS)
-        api_key = st.text_input('API Token', 'Enter Password', type="password")
+        api_key = st.text_input('Keboola Storage Token', 'Enter Storage Token', type="password")
         if st.form_submit_button("Connect"):
                 kbc_client = Client(connection_url, api_key)
                 

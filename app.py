@@ -2,7 +2,6 @@ import openai
 import re
 import streamlit as st
 import os
-import requests
 import sqlalchemy
 import json
 
@@ -40,13 +39,13 @@ conn_method = st.selectbox(translate("connection_method", language), [translate(
 
 if conn_method == snfl_db:
     connect_to_snowflake()
-    conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
+    conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['kbc_url']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-0613', temperature=0), db=db)
 
 else:
     st.write(translate("using_demo_db", language)) 
-    account_identifier = st.secrets["account_identifier"]
+    account_identifier = st.secrets["kbc_url"]
     user = st.secrets["user"]
     password = st.secrets["password"]
     database_name = st.secrets["database_name"]
@@ -224,10 +223,7 @@ with st.container():
                         st.write(e)
                         st.write(translate("valid_query", language))
 
-            #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
-
-            #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
-
+    
         if st.button(translate("regenerate_response", language)):
             st_callback = StreamlitCallbackHandler(st.container())
             output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
