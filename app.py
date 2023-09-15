@@ -44,7 +44,7 @@ conn_method = st.selectbox(translate("connection_method", language), [translate(
 if conn_method == snfl_db:
 
     connect_to_snowflake()
-    conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['kbc_url']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
+    conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.secrets['kbc_url']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-0613', temperature=0), db=db)
 
