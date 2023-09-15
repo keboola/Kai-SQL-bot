@@ -50,7 +50,7 @@ if conn_method == snfl_db:
 
 else:
     st.write(translate("using_demo_db", language)) 
-    account_identifier = st.secrets["kbc_url"]
+    account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
     database_name = st.secrets["database_name"]
