@@ -14,11 +14,14 @@ from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
 
 
+
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
+
 
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.set_page_config(page_title="KAI SQL Bot", page_icon=":robot_face:")
 st.image(image_path+'/static/keboola_logo.png', width=200)
+
 st.header("Kai SQL Bot Demo ")
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
@@ -33,11 +36,13 @@ def translate(key, lang="English"):
 
 language = st.selectbox("Language/Jazyk", ["English", "Czech"]) 
 
+
 snfl_db = translate("snfl_db", language)   
 
 conn_method = st.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db])
 
 if conn_method == snfl_db:
+
     connect_to_snowflake()
     conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['kbc_url']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
     db = SQLDatabase.from_uri(conn_string)
@@ -56,7 +61,6 @@ else:
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
 
-  
 
 agent_executor = create_sql_agent(
     llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
@@ -239,4 +243,4 @@ with st.container():
                 del st.session_state[key]
 
 
-                
+
