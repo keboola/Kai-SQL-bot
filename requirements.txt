@@ -1,8 +1,5 @@
 streamlit
 langchain
-
-openai
-SQLAlchemy==1.4.17
-snowflake-sqlalchemy==1.2.4
-streamlit-chat
-kbcstorage
+SQLAlchemy==1.4.49
+openai==0.27.8
+snowflake-sqlalchemy==1.4.7
