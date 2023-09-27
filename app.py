@@ -14,8 +14,6 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
 
-
-
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 
 
@@ -85,12 +83,12 @@ def initialize_demo_connection():
     return agent_executor, conn_string
 
 
-language = st.selectbox("Language/Jazyk", ["English", "Czech"]) 
+language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"]) 
 
 
 snfl_db = translate("snfl_db", language)   
 
-conn_method = st.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db])
+conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db])
 
 if conn_method == snfl_db : 
     agent_executor,conn_string = initialize_snowflake_connection()
@@ -168,20 +166,14 @@ if language == 'Czech':
 if language == 'English':
     GEN_SQL = ENG_GEN_SQL  
     
-
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
     ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries.What can I do for you?"
     
     st.session_state.messages.append({"role":"Kai", "content" : ai_intro})
 
-
-
-
 # Display chat messages from history
 with st.container():
-
     # Create a dictionary to store feedback counts
     feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 
@@ -195,7 +187,6 @@ with st.container():
                 st.markdown(message["content"])
 
     user_input = st.chat_input(translate("ask_a_question", language))
-
 
     if user_input:
         # Add user message to the chat
@@ -211,7 +202,6 @@ with st.container():
 
         st_callback = StreamlitCallbackHandler(st.container())
         output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
-        
         # Add Kai's message to session state
         st.session_state.messages.append({"role": "Kai", "content": output})
 
@@ -219,125 +209,81 @@ with st.container():
         with st.chat_message("Kai"):
             st.markdown(output)
 
-if st.session_state.messages:
-    with st.container():    
+with st.container():    
+    last_output_message = []
+    last_user_message = []
 
-
-        last_output_message = []
-        last_user_message = []
-
-    
-        for message in reversed(st.session_state.messages):
-            if message["role"] == "Kai":
-                last_output_message = message
-                break
-        for message in reversed(st.session_state.messages):
-            if message["role"] =="user":
-                last_user_message = message
-                break  
-        if last_user_message:        
-                #st.write(sql)
-                # Execute the SQL query
-            def execute_sql():
-                 if last_user_message["content"]:
-                    # uncomment this code if you want to run only the first query
-                    #sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
-
-                    #if sql_match:
-                    #    sql = sql_match.group(1)
-                    #    st.write(sql) 
-
-                    # this will find all the queries and run all of them
-                    sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
-
-                    for sql in sql_matches:
-                        st.write("SQL code")   
-                        st.code(sql, language="sql")
-    
-
-                        try:
-                            #connect to snowflake using sqlalchemy engine and execute the sql query
-                            engine = sqlalchemy.create_engine(conn_string)
-                            df = engine.execute(sql).fetchall()
-                            #st.dataframe(df)
-                            # Initialize a variable to store the last result message
-                            last_result_message = None
-
-                            # Append messages
-                            st.session_state.messages.append({"role": "result", "content": df})
-
-                            # Iterate over messages
-                            for message in st.session_state.messages:
-                                if message["role"] == "result":
-                                    # Update the last result message
-                                    last_result_message = message
-
-                            # Display the last result message as a dataframe
-                            if last_result_message:
-                                #with st.chat_message(last_result_message["role"]):
-                                st.dataframe(last_result_message["content"])
-
-
-                        except Exception as e:
-                            st.write(e)
-                            st.write(translate("invalid_query", language))
-
-                    st.button(translate("execute_sql", language), on_click=execute_sql)     
-            if st.button(translate("regenerate_response", language)):
-                st_callback = StreamlitCallbackHandler(st.container())
-                output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
-                sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-                st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
-                st.session_state.messages.append({"role": "Kai", "content": output})
-                with st.chat_message("Kai"):
-                    st.markdown(output)
-
-
-            def clear_chat():
-                st.session_state.messages = []
-                last_result_message = None
-                last_output_message = None
+    for message in reversed(st.session_state.messages):
+        if message["role"] == "Kai":
+            last_output_message = message
+            break
+    for message in reversed(st.session_state.messages):
+        if message["role"] =="user":
+            last_user_message = message
+            break  
+    if last_user_message:        
+        def execute_sql():
+             if last_user_message["content"]:
+                sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
+                for sql in sql_matches:
+                    try:
+                        #connect to snowflake using sqlalchemy engine and execute the sql query
+                        engine = sqlalchemy.create_engine(conn_string)
+                        df = engine.execute(sql).fetchall()
+                        # Append messages
+                        st.session_state.messages.append({"role": "result", "content": df})
                 
+                    except Exception as e:
+                        st.write(e)
+                        st.write(translate("invalid_query", language))
+        
+        st.button(translate("execute_sql", language), on_click=execute_sql)     
+        
+            
 
-            st.button(translate("clear_chat", language), on_click=clear_chat)
-
-
-
-            # Create two columns with custom widths
-            col_1, col_2 = st.columns([1, 5])
-
-            # Apply custom CSS to reduce margin between columns
-            st.markdown(
-                """
-                <style>
-                .st-b3 {
-                    margin-left: -10px; /* Adjust the negative margin as needed */
-                }
-                </style>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            # Display thumbs-up button in the first column
-            with col_1:
-                if st.button("👍"):
-                    handle_feedback("thumbs_up")
-
-            # Display thumbs-down button in the second column
-            with col_2:
-                if st.button("👎"):
-                    handle_feedback("thumbs_down")
-
-            if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
-                feedback = "positive"
-            elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
-                feedback = "negative"
-            else:
-                # If both counts are equal or both are 0, set a default feedback
-                feedback = "neutral"
-
-            log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
-            headers = {'Content-Type': 'application/json'}
-
-            r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
-
+        if st.button(translate("regenerate_response", language)):
+            st_callback = StreamlitCallbackHandler(st.container())
+            output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
+            sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+            st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
+            st.session_state.messages.append({"role": "Kai", "content": output})
+            with st.chat_message("Kai"):
+                st.markdown(output)
+        def clear_chat():
+            st.session_state.messages = []
+            last_result_message = None
+            last_output_message = None
+            
+        st.sidebar.button(translate("clear_chat", language), on_click=clear_chat)
+        # Create two columns with custom widths
+        col_1, col_2 = st.columns([1, 5])
+        # Apply custom CSS to reduce margin between columns
+        st.markdown(
+            """
+            <style>
+            .st-b3 {
+                margin-left: -10px; /* Adjust the negative margin as needed */
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        # Display thumbs-up button in the first column
+        with col_1:
+            if st.button("👍"):
+                handle_feedback("thumbs_up")
+        # Display thumbs-down button in the second column
+        with col_2:
+            if st.button("👎"):
+                handle_feedback("thumbs_down")
+        if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
+            feedback = "positive"
+        elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
+            feedback = "negative"
+        else:
+            # If both counts are equal or both are 0, set a default feedback
+            feedback = "neutral"
+        log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
+        headers = {'Content-Type': 'application/json'}
+        
+        r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
