@@ -3,3 +3,4 @@ src/keboola_storage_api/__pycache__/*
 src/workspace_connection/__pycache__/*
 secrets.toml
 snowflake_sql_agent.ipynb
+.DS_Store

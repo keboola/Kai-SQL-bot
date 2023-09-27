@@ -189,9 +189,10 @@ with st.container():
     def handle_feedback(feedback_type):
         feedback_counts[feedback_type] += 1
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    if st.session_state.messages:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
     user_input = st.chat_input(translate("ask_a_question", language))
 
@@ -218,117 +219,125 @@ with st.container():
         with st.chat_message("Kai"):
             st.markdown(output)
 
-with st.container():    
+if st.session_state.messages:
+    with st.container():    
 
 
-    last_output_message = []
-    last_user_message = []
-    for message in reversed(st.session_state.messages):
-        if message["role"] == "Kai":
-            last_output_message = message
-            break
-    for message in reversed(st.session_state.messages):
-        if message["role"] =="user":
-            last_user_message = message
-            break  
-    if last_user_message:        
-        if st.button(translate("execute_sql", language)):       
-            #st.write(sql)
-            # Execute the SQL query
-             if last_user_message["content"]:
-                # uncomment this code if you want to run only the first query
-                #sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
+        last_output_message = []
+        last_user_message = []
 
-                #if sql_match:
-                #    sql = sql_match.group(1)
-                #    st.write(sql) 
-                
-                # this will find all the queries and run all of them
-                sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
+    
+        for message in reversed(st.session_state.messages):
+            if message["role"] == "Kai":
+                last_output_message = message
+                break
+        for message in reversed(st.session_state.messages):
+            if message["role"] =="user":
+                last_user_message = message
+                break  
+        if last_user_message:        
+                #st.write(sql)
+                # Execute the SQL query
+            def execute_sql():
+                 if last_user_message["content"]:
+                    # uncomment this code if you want to run only the first query
+                    #sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
 
-                for sql in sql_matches:
-                    st.write("SQL code")   
-                    st.code(sql, language="sql")
- 
+                    #if sql_match:
+                    #    sql = sql_match.group(1)
+                    #    st.write(sql) 
 
-                    try:
-                        #connect to snowflake using sqlalchemy engine and execute the sql query
-                        engine = sqlalchemy.create_engine(conn_string)
-                        df = engine.execute(sql).fetchall()
-                        #st.dataframe(df)
-                        # Initialize a variable to store the last result message
-                        last_result_message = None
+                    # this will find all the queries and run all of them
+                    sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
 
-                        # Append messages
-                        st.session_state.messages.append({"role": "result", "content": df})
+                    for sql in sql_matches:
+                        st.write("SQL code")   
+                        st.code(sql, language="sql")
+    
 
-                        # Iterate over messages
-                        for message in st.session_state.messages:
-                            if message["role"] == "result":
-                                # Update the last result message
-                                last_result_message = message
+                        try:
+                            #connect to snowflake using sqlalchemy engine and execute the sql query
+                            engine = sqlalchemy.create_engine(conn_string)
+                            df = engine.execute(sql).fetchall()
+                            #st.dataframe(df)
+                            # Initialize a variable to store the last result message
+                            last_result_message = None
 
-                        # Display the last result message as a dataframe
-                        if last_result_message:
-                            with st.chat_message(last_result_message["role"]):
+                            # Append messages
+                            st.session_state.messages.append({"role": "result", "content": df})
+
+                            # Iterate over messages
+                            for message in st.session_state.messages:
+                                if message["role"] == "result":
+                                    # Update the last result message
+                                    last_result_message = message
+
+                            # Display the last result message as a dataframe
+                            if last_result_message:
+                                #with st.chat_message(last_result_message["role"]):
                                 st.dataframe(last_result_message["content"])
 
 
-                    except Exception as e:
-                        st.write(e)
-                        st.write(translate("invalid_query", language))
+                        except Exception as e:
+                            st.write(e)
+                            st.write(translate("invalid_query", language))
 
-    
-        if st.button(translate("regenerate_response", language)):
-            st_callback = StreamlitCallbackHandler(st.container())
-            output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
-            sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-            st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
-            st.session_state.messages.append({"role": "Kai", "content": output})
-            with st.chat_message("Kai"):
-                st.markdown(output)
-
-        if st.button(translate("clear_chat", language)):
-            for key in st.session_state.keys():
-                st.session_state.messages = []    
-                #del st.session_state[key]
+                    st.button(translate("execute_sql", language), on_click=execute_sql)     
+            if st.button(translate("regenerate_response", language)):
+                st_callback = StreamlitCallbackHandler(st.container())
+                output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
+                sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+                st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
+                st.session_state.messages.append({"role": "Kai", "content": output})
+                with st.chat_message("Kai"):
+                    st.markdown(output)
 
 
-        # Create two columns with custom widths
-        col_1, col_2 = st.columns([1, 5])
+            def clear_chat():
+                st.session_state.messages = []
+                last_result_message = None
+                last_output_message = None
+                
 
-        # Apply custom CSS to reduce margin between columns
-        st.markdown(
-            """
-            <style>
-            .st-b3 {
-                margin-left: -10px; /* Adjust the negative margin as needed */
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+            st.button(translate("clear_chat", language), on_click=clear_chat)
 
-        # Display thumbs-up button in the first column
-        with col_1:
-            if st.button("👍"):
-                handle_feedback("thumbs_up")
 
-        # Display thumbs-down button in the second column
-        with col_2:
-            if st.button("👎"):
-                handle_feedback("thumbs_down")
-        
-        if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
-            feedback = "positive"
-        elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
-            feedback = "negative"
-        else:
-            # If both counts are equal or both are 0, set a default feedback
-            feedback = "neutral"
 
-        log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
-        headers = {'Content-Type': 'application/json'}
+            # Create two columns with custom widths
+            col_1, col_2 = st.columns([1, 5])
 
-        r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+            # Apply custom CSS to reduce margin between columns
+            st.markdown(
+                """
+                <style>
+                .st-b3 {
+                    margin-left: -10px; /* Adjust the negative margin as needed */
+                }
+                </style>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Display thumbs-up button in the first column
+            with col_1:
+                if st.button("👍"):
+                    handle_feedback("thumbs_up")
+
+            # Display thumbs-down button in the second column
+            with col_2:
+                if st.button("👎"):
+                    handle_feedback("thumbs_down")
+
+            if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
+                feedback = "positive"
+            elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
+                feedback = "negative"
+            else:
+                # If both counts are equal or both are 0, set a default feedback
+                feedback = "neutral"
+
+            log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
+            headers = {'Content-Type': 'application/json'}
+
+            r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 
