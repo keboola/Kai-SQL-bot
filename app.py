@@ -65,7 +65,7 @@ def initialize_demo_connection():
     database_name = st.secrets["database_name"]
     schema_name = st.secrets["schema_name"]
     warehouse_name = st.secrets["warehouse_name"]
-    role_name = st.secrets["role_name"]
+    role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
@@ -83,12 +83,12 @@ def initialize_demo_connection():
     return agent_executor, conn_string
 
 
-language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"]) 
+language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"], help="Select the language you want to use for the chatbot. Currently, only English and Czech are supported.")
 
 
 snfl_db = translate("snfl_db", language)   
 
-conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db])
+conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db], help="Select the connection method you want to use for the chatbot. Currently, only Snowflake is supported.")
 
 if conn_method == snfl_db : 
     agent_executor,conn_string = initialize_snowflake_connection()
@@ -186,7 +186,7 @@ with st.container():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-    user_input = st.chat_input(translate("ask_a_question", language))
+    user_input = st.chat_input(translate("ask_a_question", language), help="Type your question here and press Enter to send it to Kai. Kai will respond with an answer and a SQL query.")
 
     if user_input:
         # Add user message to the chat
@@ -285,5 +285,5 @@ with st.container():
             feedback = "neutral"
         log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
         headers = {'Content-Type': 'application/json'}
-        
+
         r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
