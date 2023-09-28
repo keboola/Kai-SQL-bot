@@ -5,6 +5,7 @@ import os
 import sqlalchemy
 import json
 import requests
+import pandas as pd
 
 from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
@@ -201,7 +202,7 @@ with st.container():
             break  
     if last_user_message:        
         def execute_sql():
-             if last_user_message["content"]:
+            if last_user_message["content"]:
                 sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
                 for sql in sql_matches:
                     try:
@@ -209,8 +210,15 @@ with st.container():
                         engine = sqlalchemy.create_engine(conn_string)
                         df = engine.execute(sql).fetchall()
                         # Append messages
-                        st.session_state.messages.append({"role": "result", "content": df})
-                
+                        #st.session_state.messages.append({"role": "result", "content": df})
+                        st.sidebar.write("Results")
+                        st.sidebar.dataframe(df)
+                        st.sidebar.download_button(
+                            label="Download results",
+                            data=pd.as_dataframe(df).to_csv,
+                            file_name="results.csv",
+                            mime="text/csv",
+                        )
                     except Exception as e:
                         st.write(e)
                         st.write(translate("invalid_query", language))
