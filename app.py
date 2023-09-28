@@ -4,6 +4,7 @@ import streamlit as st
 import os
 import sqlalchemy
 import json
+import requests
 
 from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
@@ -13,16 +14,16 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
 
-
-
-from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
+from src.workspace_connection.workspace_connection import connect_to_snowflake
 
 
 image_path = os.path.dirname(os.path.abspath(__file__))
-st.set_page_config(page_title="KAI SQL Bot", page_icon=":robot_face:")
+st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 st.image(image_path+'/static/keboola_logo.png', width=200)
+home_title = "Kai SQL Bot"  # Replace with your title
 
-st.header("Kai SQL Bot Demo ")
+# Display the title with the "Beta" label using HTML styling
+st.markdown(f"""# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta</span>""", unsafe_allow_html=True)
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
 
@@ -34,21 +35,29 @@ def translate(key, lang="English"):
         translations = json.load(file)
         return translations.get(key, key)  # Return key if translation not found.
 
-language = st.selectbox("Language/Jazyk", ["English", "Czech"]) 
 
+def initialize_snowflake_connection():
+    submit = connect_to_snowflake()
+    if submit : 
+        conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
+        db = SQLDatabase.from_uri(conn_string)
+        toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-0613', temperature=0), db=db)
+        agent_executor = create_sql_agent(
+        llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
+        toolkit=toolkit,
+        verbose=True,
+        handle_parsing_errors=True,
+        max_iterations=100,
+        agent_type=AgentType.OPENAI_FUNCTIONS
+        #prefix=custom_prefix,
+        #suffix=custom_suffix,
+        #format_instructions=custom_format_instructions
+        )
+        return agent_executor, conn_string
+    else:
+        return None, None
 
-snfl_db = translate("snfl_db", language)   
-
-conn_method = st.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db])
-
-if conn_method == snfl_db:
-
-    connect_to_snowflake()
-    conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.secrets['kbc_url']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
-    db = SQLDatabase.from_uri(conn_string)
-    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-0613', temperature=0), db=db)
-
-else:
+def initialize_demo_connection():
     st.write(translate("using_demo_db", language)) 
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
@@ -56,24 +65,36 @@ else:
     database_name = st.secrets["database_name"]
     schema_name = st.secrets["schema_name"]
     warehouse_name = st.secrets["warehouse_name"]
-    role_name = st.secrets["role_name"]
+    role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
+    agent_executor = create_sql_agent(
+        llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
+        toolkit=toolkit,
+        verbose=True,
+        handle_parsing_errors=True,
+        max_iterations=100,
+        agent_type=AgentType.OPENAI_FUNCTIONS
+        #prefix=custom_prefix,
+        #suffix=custom_suffix,
+        #format_instructions=custom_format_instructions
+    )
+    return agent_executor, conn_string
 
 
-agent_executor = create_sql_agent(
-    llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
-    toolkit=toolkit,
-    verbose=True,
-    handle_parsing_errors=True,
-    max_iterations=100,
-    agent_type=AgentType.OPENAI_FUNCTIONS
-    #prefix=custom_prefix,
-    #suffix=custom_suffix,
-    #format_instructions=custom_format_instructions
-)
+language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"], help="Select the language you want to use for the chatbot. Currently, only English and Czech are supported.")
 
+
+snfl_db = translate("snfl_db", language)   
+
+conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db], help="Select the connection method you want to use for the chatbot. Currently, only Snowflake is supported.")
+
+if conn_method == snfl_db : 
+    agent_executor,conn_string = initialize_snowflake_connection()
+    
+else : 
+    agent_executor, conn_string = initialize_demo_connection()   
 
 CZ_GEN_SQL = """
 Představte se jako odborník na Snowflake SQL jménem Kai.
@@ -138,27 +159,34 @@ Copy code
 (select 1) union (select 2)
 For each question from the user, ensure to include a query in your response.
 
-Now, let's get started. Begin by introducing yourself briefly, describing your skills, and listing available metrics in two to three sentences. Then, provide 3 example questions (use bullet points) that a user might ask, and remember to answer each question with an SQL query."""
+Remember to answer each question with an SQL query"""
 
 if language == 'Czech':
     GEN_SQL = CZ_GEN_SQL
 if language == 'English':
     GEN_SQL = ENG_GEN_SQL  
     
-# Initialize chat history
-
-# Initialize chat history
-
 if "messages" not in st.session_state:
     st.session_state.messages = []
+    ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries.What can I do for you?"
+    
+    st.session_state.messages.append({"role":"Kai", "content" : ai_intro})
 
 # Display chat messages from history
 with st.container():
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+    # Create a dictionary to store feedback counts
+    feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 
-    user_input = st.chat_input(translate("ask_a_question", language))
+    # Function to handle user feedback
+    def handle_feedback(feedback_type):
+        feedback_counts[feedback_type] += 1
+
+    if st.session_state.messages:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
+
+    user_input = st.chat_input(translate("ask_a_question", language), help="Type your question here and press Enter to send it to Kai. Kai will respond with an answer and a SQL query.")
 
     if user_input:
         # Add user message to the chat
@@ -174,7 +202,6 @@ with st.container():
 
         st_callback = StreamlitCallbackHandler(st.container())
         output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
-        
         # Add Kai's message to session state
         st.session_state.messages.append({"role": "Kai", "content": output})
 
@@ -185,6 +212,7 @@ with st.container():
 with st.container():    
     last_output_message = []
     last_user_message = []
+
     for message in reversed(st.session_state.messages):
         if message["role"] == "Kai":
             last_output_message = message
@@ -194,41 +222,25 @@ with st.container():
             last_user_message = message
             break  
     if last_user_message:        
-        if st.button(translate("execute_sql", language)):       
-            #st.write(sql)
-            # Execute the SQL query
+        def execute_sql():
              if last_user_message["content"]:
-                # uncomment this code if you want to run only the first query
-                #sql_match = re.search(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)    
-
-                #if sql_match:
-                #    sql = sql_match.group(1)
-                #    st.write(sql) 
-                
-                # this will find all the queries and run all of them
                 sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
-
                 for sql in sql_matches:
-                    st.write(sql)    
-
                     try:
                         #connect to snowflake using sqlalchemy engine and execute the sql query
                         engine = sqlalchemy.create_engine(conn_string)
                         df = engine.execute(sql).fetchall()
-                        st.dataframe(df)
+                        # Append messages
                         st.session_state.messages.append({"role": "result", "content": df})
-                        st.write(db.run(sql))
-                        ##display the results as a dataframe
-                        for message in st.session_state.messages:
-                            with st.chat_message(message["role"]):
-                                if message["role"] == "result":
-                                    st.dataframe(message["content"])
-
+                
                     except Exception as e:
                         st.write(e)
-                        st.write(translate("valid_query", language))
+                        st.write(translate("invalid_query", language))
+        
+        st.button(translate("execute_sql", language), on_click=execute_sql)     
+        
+            
 
-    
         if st.button(translate("regenerate_response", language)):
             st_callback = StreamlitCallbackHandler(st.container())
             output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
@@ -237,10 +249,41 @@ with st.container():
             st.session_state.messages.append({"role": "Kai", "content": output})
             with st.chat_message("Kai"):
                 st.markdown(output)
+        def clear_chat():
+            st.session_state.messages = []
+            last_result_message = None
+            last_output_message = None
+            
+        st.sidebar.button(translate("clear_chat", language), on_click=clear_chat)
+        # Create two columns with custom widths
+        col_1, col_2 = st.columns([1, 5])
+        # Apply custom CSS to reduce margin between columns
+        st.markdown(
+            """
+            <style>
+            .st-b3 {
+                margin-left: -10px; /* Adjust the negative margin as needed */
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        # Display thumbs-up button in the first column
+        with col_1:
+            if st.button("👍"):
+                handle_feedback("thumbs_up")
+        # Display thumbs-down button in the second column
+        with col_2:
+            if st.button("👎"):
+                handle_feedback("thumbs_down")
+        if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
+            feedback = "positive"
+        elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
+            feedback = "negative"
+        else:
+            # If both counts are equal or both are 0, set a default feedback
+            feedback = "neutral"
+        log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
+        headers = {'Content-Type': 'application/json'}
 
-        if st.button(translate("clear_chat", language)):
-            for key in st.session_state.keys():
-                del st.session_state[key]
-
-
-
+        r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
