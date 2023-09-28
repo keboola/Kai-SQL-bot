@@ -186,7 +186,7 @@ with st.container():
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
 
-    user_input = st.chat_input(translate("ask_a_question", language), help="Type your question here and press Enter to send it to Kai. Kai will respond with an answer and a SQL query.")
+    user_input = st.chat_input(translate("ask_a_question", language))
 
     if user_input:
         # Add user message to the chat
