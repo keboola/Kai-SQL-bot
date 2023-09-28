@@ -36,27 +36,6 @@ def translate(key, lang="English"):
         return translations.get(key, key)  # Return key if translation not found.
 
 
-def initialize_snowflake_connection():
-    submit = connect_to_snowflake()
-    if submit : 
-        conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
-        db = SQLDatabase.from_uri(conn_string)
-        toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-32k', temperature=0), db=db)
-        agent_executor = create_sql_agent(
-        llm=ChatOpenAI(model='gpt-4-32k', temperature=0),
-        toolkit=toolkit,
-        verbose=True,
-        handle_parsing_errors=True,
-        max_iterations=100,
-        agent_type=AgentType.OPENAI_FUNCTIONS
-        #prefix=custom_prefix,
-        #suffix=custom_suffix,
-        #format_instructions=custom_format_instructions
-        )
-        return agent_executor, conn_string
-    else:
-        return None, None
-
 def initialize_demo_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
@@ -67,9 +46,9 @@ def initialize_demo_connection():
     role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
-    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-32k', temperature=0), db=db)
+    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
     agent_executor = create_sql_agent(
-        llm=ChatOpenAI(model='gpt-4-32k', temperature=0),
+        llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0),
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
