@@ -58,7 +58,6 @@ def initialize_snowflake_connection():
         return None, None
 
 def initialize_demo_connection():
-    st.write(translate("using_demo_db", language)) 
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
