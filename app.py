@@ -286,4 +286,6 @@ with st.container():
         log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
         headers = {'Content-Type': 'application/json'}
 
-        r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+        # check if the url exists in the secrets
+        if "url" in st.secrets:
+            r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
