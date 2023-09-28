@@ -41,9 +41,9 @@ def initialize_snowflake_connection():
     if submit : 
         conn_string = f"snowflake://{st.session_state['user']}:{st.session_state['password']}@{st.session_state['account']}/{st.session_state['database']}/{st.session_state['schema']}?warehouse={st.session_state['warehouse']}&role={st.session_state['user']}"
         db = SQLDatabase.from_uri(conn_string)
-        toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-0613', temperature=0), db=db)
+        toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-32k', temperature=0), db=db)
         agent_executor = create_sql_agent(
-        llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
+        llm=ChatOpenAI(model='gpt-4-32k', temperature=0),
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
@@ -68,9 +68,9 @@ def initialize_demo_connection():
     role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
-    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
+    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-4-32k', temperature=0), db=db)
     agent_executor = create_sql_agent(
-        llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
+        llm=ChatOpenAI(model='gpt-4-32k', temperature=0),
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
