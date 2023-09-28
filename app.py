@@ -88,13 +88,13 @@ language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"], help="Se
 
 snfl_db = translate("snfl_db", language)   
 
-conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db], help="Select the connection method you want to use for the chatbot. Currently, only Snowflake is supported.")
+#conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db], help="Select the connection method you want to use for the chatbot. Currently, only Snowflake is supported.")
 
-if conn_method == snfl_db : 
-    agent_executor,conn_string = initialize_snowflake_connection()
+#if conn_method == snfl_db : 
+#    agent_executor,conn_string = initialize_snowflake_connection()
     
-else : 
-    agent_executor, conn_string = initialize_demo_connection()   
+
+agent_executor, conn_string = initialize_demo_connection()   
 
 CZ_GEN_SQL = """
 Představte se jako odborník na Snowflake SQL jménem Kai.
