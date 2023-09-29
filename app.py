@@ -47,8 +47,8 @@ def translate(key, lang="English"):
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
-#llm = OpenAI(temperature=0, streaming=True)
-llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
+llm = OpenAI(temperature=0, streaming=True)
+#llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
