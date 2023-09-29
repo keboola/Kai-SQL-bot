@@ -47,8 +47,15 @@ def translate(key, lang="English"):
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
-#llm = OpenAI(temperature=0, streaming=True)
-llm = ChatOpenAI(model='gpt-4', temperature=0, streaming=True)
+
+model_selection = st.sidebar.selectbox("Choose a model", ['default', 'gpt-4', 'gpt-3.5-turbo-16k'], help="Select the model you want to use for the chatbot.")
+if model_selection == 'gpt-4': 
+    llm = ChatOpenAI(model='gpt-4', temperature=0, streaming=True)
+elif model_selection == 'gpt-3.5-turbo-16k':
+    llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
+else:
+    llm = OpenAI(temperature=0, streaming=True)
+
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
@@ -68,9 +75,6 @@ def initialize_connection():
         max_iterations=100,
         agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         memory=memory
-        #prefix=custom_prefix,
-        #suffix=custom_suffix,
-        #format_instructions=custom_format_instructions
     )
     return agent_executor, conn_string
 
