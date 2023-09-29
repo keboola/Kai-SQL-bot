@@ -43,6 +43,12 @@ def translate(key, lang="English"):
         translations = json.load(file)
         return translations.get(key, key)  # Return key if translation not found.
 
+
+msgs = StreamlitChatMessageHistory(key="chat_messages")
+memory = ConversationBufferMemory(chat_memory=msgs)
+
+llm = OpenAI(temperature=0, streaming=True)
+#llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
@@ -53,14 +59,15 @@ def initialize_connection():
     role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
-    toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
+    toolkit = SQLDatabaseToolkit(llm=llm, db=db)
     agent_executor = create_sql_agent(
-        llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0),
+        llm=llm,
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
         max_iterations=100,
-        agent_type=AgentType.OPENAI_FUNCTIONS
+        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        memory=memory
         #prefix=custom_prefix,
         #suffix=custom_suffix,
         #format_instructions=custom_format_instructions
@@ -88,9 +95,6 @@ with chat_container:
     # Function to handle user feedback
     def handle_feedback(feedback_type):
         feedback_counts[feedback_type] += 1
-
-    msgs = StreamlitChatMessageHistory(key="chat_messages")
-    memory = ConversationBufferMemory(chat_memory=msgs)
 
 
     ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
