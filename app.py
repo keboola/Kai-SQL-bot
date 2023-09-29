@@ -7,6 +7,11 @@ import json
 import requests
 import pandas as pd
 
+from streamlit_ace import st_ace
+from langchain.memory import StreamlitChatMessageHistory
+from langchain.memory import ConversationBufferMemory
+from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
+
 from langchain.agents import create_sql_agent, AgentExecutor
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
@@ -16,7 +21,6 @@ from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
-
 
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
@@ -37,7 +41,7 @@ def translate(key, lang="English"):
         return translations.get(key, key)  # Return key if translation not found.
 
 
-def initialize_demo_connection():
+def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
@@ -67,13 +71,7 @@ language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"], help="Se
 
 snfl_db = translate("snfl_db", language)   
 
-#conn_method = st.sidebar.selectbox(translate("connection_method", language), [translate("demo_db", language), snfl_db], help="Select the connection method you want to use for the chatbot. Currently, only Snowflake is supported.")
-
-#if conn_method == snfl_db : 
-#    agent_executor,conn_string = initialize_snowflake_connection()
-    
-
-agent_executor, conn_string = initialize_demo_connection()   
+agent_executor, conn_string = initialize_connection()   
 
 CZ_GEN_SQL = """
 Představte se jako odborník na Snowflake SQL jménem Kai.
@@ -109,8 +107,8 @@ Nyní se pojďme pustit do práce. Představte se stručně, popište své doved
 
 ENG_GEN_SQL = """
 You will be taking on the role of an AI Snowflake SQL Expert named Kai.
-Your objective is to provide users with valid and executable SQL queries.
-Users will ask questions, and for each question accompanied by a table, you should respond with an answer including a SQL query.
+Your objective is to provide users with valid and executable SQL queries, along with the execution results.
+Users will ask questions, and for each question accompanied by a table, you should respond with an answer including a SQL query and the results of the query.
 
 {context}
 
@@ -136,15 +134,15 @@ and wrap the generated SQL code with markdown code formatting tags in this forma
 sql
 Copy code
 (select 1) union (select 2)
-For each question from the user, ensure to include a query in your response.
-
-Remember to answer each question with an SQL query"""
+For each question from the user, ensure to include a query in your response along with the results.
+"""
 
 if language == 'Czech':
     GEN_SQL = CZ_GEN_SQL
 if language == 'English':
     GEN_SQL = ENG_GEN_SQL  
-    
+
+# TODO: Add this to the langchain message history logic instead of using st.session_state 
 if "messages" not in st.session_state:
     st.session_state.messages = []
     ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries.What can I do for you?"
@@ -164,42 +162,57 @@ with st.container():
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
+    
+    msgs = StreamlitChatMessageHistory(key="chat_messages")
 
-    user_input = st.chat_input(translate("ask_a_question", language))
-
-    if user_input:
-        # Add user message to the chat
-        with st.chat_message("user"):
-            st.markdown(user_input)
-
-        # Add user message to session state
-        st.session_state.messages.append({"role": "user", "content": user_input})
-
-        # Display "Kai is typing..."
-        with st.chat_message("Kai"):
-            st.markdown(translate("typing", language))
-
-        st_callback = StreamlitCallbackHandler(st.container())
-        output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
-        # Add Kai's message to session state
-        st.session_state.messages.append({"role": "Kai", "content": output})
-
-        # Display Kai's message
-        with st.chat_message("Kai"):
-            st.markdown(output)
-
-with st.container():    
     last_output_message = []
     last_user_message = []
 
-    for message in reversed(st.session_state.messages):
-        if message["role"] == "Kai":
-            last_output_message = message
-            break
-    for message in reversed(st.session_state.messages):
-        if message["role"] =="user":
-            last_user_message = message
-            break  
+    for msg in msgs.messages:
+        st.chat_message(msg.type).write(msg.content)
+
+    if prompt := st.chat_input():
+        st.chat_message("human").write(prompt)
+
+        st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+        response = agent_executor.run(input=GEN_SQL + prompt, callbacks=[st_callback])
+        st.chat_message("ai").write(response)
+
+    #user_input = st.chat_input(translate("ask_a_question", language))
+
+    #if user_input:
+    #    # Add user message to the chat
+    #    with st.chat_message("user"):
+    #        st.markdown(user_input)
+##
+ #    # Add user message to session state
+ #    st.session_state.messages.append({"role": "user", "content": user_input})
+
+ #    # Display "Kai is typing..."
+ #    with st.chat_message("Kai"):
+ #        st.markdown(translate("typing", language))
+
+ #    st_callback = StreamlitCallbackHandler(st.container())
+ #    output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
+ #    # Add Kai's message to session state
+ #    st.session_state.messages.append({"role": "Kai", "content": output})
+
+ #    # Display Kai's message
+ #    with st.chat_message("Kai"):
+ #        st.markdown(output)
+
+#TODO: Connect the buttons back to the new langchain message history
+with st.container():    
+
+    
+    #for message in reversed(st.session_state.messages):
+    #    if message["role"] == "Kai":
+    #        last_output_message = message
+    #        break
+    #for message in reversed(st.session_state.messages):
+    #    if message["role"] =="user":
+    #        last_user_message = message
+    #        break  
     if last_user_message:        
         def execute_sql():
             if last_user_message["content"]:
@@ -209,16 +222,25 @@ with st.container():
                         #connect to snowflake using sqlalchemy engine and execute the sql query
                         engine = sqlalchemy.create_engine(conn_string)
                         df = engine.execute(sql).fetchall()
+                        df = pd.DataFrame(df)
                         # Append messages
-                        #st.session_state.messages.append({"role": "result", "content": df})
+                        st.session_state.messages.append({"role": "result", "content": df})
+                        # Display messages
+                        with st.container():
+                            with st.chat_message("result"):
+                                st.dataframe(df)
+
+
                         st.sidebar.write("Results")
                         st.sidebar.dataframe(df)
-                        st.sidebar.download_button(
-                            label="Download results",
-                            data=pd.as_dataframe(df).to_csv,
-                            file_name="results.csv",
-                            mime="text/csv",
-                        )
+                        # Spawn a new Ace editor
+                        #with st.sidebar.container():
+                        #    content = st_ace()
+#
+                        ## Display editor's content as you type
+                        #    content
+
+                        
                     except Exception as e:
                         st.write(e)
                         st.write(translate("invalid_query", language))
