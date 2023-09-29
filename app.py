@@ -11,7 +11,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from Kai_SQL_bot.Kai_Agent import create_Kai_Agent
+# from Kai_SQL_bot.Kai_Agent import create_Kai_Agent
 
 from langchain.agents import create_sql_agent, AgentExecutor, initialize_agent, Tool, AgentType, load_tools, ZeroShotAgent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit, create_python_agent, create_csv_agent
@@ -74,20 +74,54 @@ else:
 #!----------------------------------
 
 
-    agent_executor = create_Kai_Agent(
-        llm=llm,
-        toolkit=toolkit,
-        verbose=True,
-        handle_parsing_errors=True,
-        max_iterations=100,
-        agent_type=AgentType.OPENAI_FUNCTIONS,
-        # extra_tools = tools
-        #prefix=custom_prefix,
-        #suffix=custom_suffix,
-        #format_instructions=custom_format_instructions
-    )
+    # agent_executor = create_Kai_Agent(
+    #     llm=llm,
+    #     toolkit=toolkit,
+    #     verbose=True,
+    #     handle_parsing_errors=True,
+    #     max_iterations=100,
+    #     agent_type=AgentType.OPENAI_FUNCTIONS,
+    #     # extra_tools = tools
+    #     #prefix=custom_prefix,
+    #     #suffix=custom_suffix,
+    #     #format_instructions=custom_format_instructions
+    # )
 
+sql_agent = create_sql_agent(
+    llm=OpenAI(temperature=0),
+    toolkit=toolkit,
+    agent_executor_kwargs={ # initilize own memory for sql_agent // this breaks the memory, but I think some variation of this should work
+        "memory": ConversationBufferMemory(
+            input_key="query", memory_key="history", return_messages= True
+        )
+    },
+    verbose=True,
+    handle_parsing_errors=True,
+    max_iterations=100,
+    input_variables = ["query", "history", "agent_scratchpad"],
+    agent_type=AgentType.OPENAI_FUNCTIONS,
+)
 
+python_agent = create_python_agent(
+    llm=OpenAI(temperature=0),
+    tool=PythonREPLTool(),
+    verbose=True,
+    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+)
+
+class KaiAgent:
+    def __init__(self, sql_agent, python_agent): #current thought process of running the agents with memory
+        self.sql_agent = sql_agent
+        self.python_agent = python_agent
+
+    def run(self, input):
+        try:
+            return self.sql_agent.run(input)
+        except Exception as e:
+            print(f"SQL agent failed with error {e}, trying Python agent")
+            return self.python_agent.run(input)
+
+agent_executor = KaiAgent(sql_agent, python_agent)
 
 #!----------------------------------
 
