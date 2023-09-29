@@ -88,24 +88,37 @@ with st.container():
         feedback_counts[feedback_type] += 1
 
     msgs = StreamlitChatMessageHistory(key="chat_messages")
+    memory = ConversationBufferMemory(chat_memory=msgs)
 
 
+    ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
 
-    # start off by having the agent post this: 
-    ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries.What can I do for you?"
     if len(msgs.messages) == 0:
         msgs.add_ai_message(ai_intro)
 
-    
-    if prompt := st.chat_input():
-        st.chat_message("human").write(prompt)
-        st_callback = StreamlitCallbackHandler(st.container())
-        prompt_formatted = gen_sql_prompt.format(context=prompt)
-        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
-        msgs.add_ai_message(response)
+    view_messages = st.sidebar.expander("View the message contents in session state")
 
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
+
+    if prompt := st.chat_input():
+        st.chat_message("user").write(prompt)
+
+        st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+        prompt_formatted = gen_sql_prompt.format(context=prompt)
+        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
+        st.chat_message("Kai").write(response)
+
+    with view_messages: """
+    Memory initialized with:
+    ```python
+    msgs = StreamlitChatMessageHistory(key="langchain_messages")
+    memory = ConversationBufferMemory(chat_memory=msgs)
+    ```
+
+    Contents of `st.session_state.langchain_messages`:
+    """
+    view_messages.json(st.session_state.chat_messages)
 
 with st.container():
     # get the output of the last message from the agent 
@@ -147,12 +160,10 @@ with st.container():
 
             if st.button(translate("regenerate_response", language)):
                 st_callback = StreamlitCallbackHandler(st.container())
-                output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
-                sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-                st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
-                st.session_state.messages.append({"role": "Kai", "content": output})
-                with st.chat_message("Kai"):
-                    st.markdown(output)
+                response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
+                sql_match = re.search(r"```sql\n(.*)\n```", response, re.DOTALL)
+                st.chat_message("Kai").write(response)
+
         def clear_chat():
             msgs.clear()
             
