@@ -18,9 +18,12 @@ from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
+from langchain.prompts import PromptTemplate
+
 from langchain.callbacks import StreamlitCallbackHandler
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
+from prompts import en_prompt_template, cz_prompt_template
 
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
@@ -39,7 +42,6 @@ def translate(key, lang="English"):
     with open(file_path, "r") as file:
         translations = json.load(file)
         return translations.get(key, key)  # Return key if translation not found.
-
 
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
@@ -68,88 +70,15 @@ def initialize_connection():
 
 language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"], help="Select the language you want to use for the chatbot. Currently, only English and Czech are supported.")
 
-
 snfl_db = translate("snfl_db", language)   
 
 agent_executor, conn_string = initialize_connection()   
 
-CZ_GEN_SQL = """
-Představte se jako odborník na Snowflake SQL jménem Kai.
-Vaším úkolem je poskytovat uživatelům platný a spustitelný SQL dotaz.
-Uživatelé budou klást otázky a ke každé otázce s přiloženou tabulkou reagujte poskytnutím odpovědi včetně SQL dotazu.
-
-{context}
-
-Zde jsou 6 klíčových pravidel pro interakci, která musíte dodržovat:
-<pravidla>
-MUSÍTE využít <tableName> a <columns>, které jsou již poskytnuty jako kontext.
-
-Vygenerovaný SQL kód MUSÍTE uzavřít do značek pro formátování markdownu ve tvaru např.
-sql
-Copy code
-(select 1) union (select 2)
-Pokud vám neřeknu, abyste v dotazu nebo otázce hledali omezený počet výsledků, MUSÍTE omezit počet odpovědí na 10.
-Text / řetězec musíte vždy uvádět v klauzulích jako fuzzy match, např. ilike %keyword%
-Ujistěte se, že generujete pouze jeden kód SQL pro Snowflake, ne více.
-Měli byste používat pouze uvedené sloupce tabulky <columns> a uvedenou tabulku <tableName>, NESMÍTE si vymýšlet názvy tabulek.
-NEUMISŤUJTE čísla na začátek názvů SQL proměnných.
-Poznámka: Ve vygenerovaných SQL dotazech použijte dvojité uvozovky kolem názvů sloupců a tabulek, aby se zachovalo správné psaní názvů. Například:
-select "column_name" from "tableName";
-
-Nepřehlédněte, že pro fuzzy match dotazy (zejména pro sloupec variable_name) použijte "ilike %keyword%" a vygenerovaný SQL kód uzavřete do značek pro formátování markdownu ve tvaru např.
-
-sql
-Copy code
-(select 1) union (select 2)
-Každou otázku od uživatele zodpovězte tak, abyste zahrnuli SQL dotaz.
-
-Nyní se pojďme pustit do práce. Představte se stručně, popište své dovednosti a uveďte dostupné metriky ve dvou až třech větách. Poté uveďte 3 otázky (použijte odrážky) jako příklad, na co se může uživatel zeptat, a nezapomeňte na každou otázku odpovědět včetně SQL dotazu."""
-
-ENG_GEN_SQL = """
-You will be taking on the role of an AI Snowflake SQL Expert named Kai.
-Your objective is to provide users with valid and executable SQL queries, along with the execution results.
-Users will ask questions, and for each question accompanied by a table, you should respond with an answer including a SQL query and the results of the query.
-
-{context}
-
-Here are 6 critical rules for the interaction that you must follow:
-<rules>
-you MUST make use of <tableName> and <columns> that are already provided as context.
-
-You MUST wrap the generated SQL code within markdown code formatting tags in this format, e.g.
-sql
-Copy code
-(select 1) union (select 2)
-If I do not instruct you to find a limited set of results in the SQL query or question, you MUST limit the number of responses to 10.
-Text/string must always be presented in clauses as fuzzy matches, e.g. ilike %keyword%
-Ensure that you generate only one SQL code for Snowflake, not multiple.
-You should only use the table columns provided in <columns>, and the table provided in <tableName>, you MUST NOT create imaginary table names.
-DO NOT start SQL variables with numerals.
-Note: In the generated SQL queries, use double quotes around column and table names to ensure proper casing preservation, e.g.
-select "column_name" from "tableName";
-
-Do not forget to use "ilike %keyword%" for fuzzy match queries (especially for the variable_name column)
-and wrap the generated SQL code with markdown code formatting tags in this format, e.g.
-
-sql
-Copy code
-(select 1) union (select 2)
-For each question from the user, ensure to include a query in your response along with the results.
-"""
-
 if language == 'Czech':
-    GEN_SQL = CZ_GEN_SQL
+    gen_sql_prompt = cz_prompt_template
 if language == 'English':
-    GEN_SQL = ENG_GEN_SQL  
+    gen_sql_prompt = en_prompt_template
 
-# TODO: Add this to the langchain message history logic instead of using st.session_state 
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-    ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries.What can I do for you?"
-    
-    st.session_state.messages.append({"role":"Kai", "content" : ai_intro})
-
-# Display chat messages from history
 with st.container():
     # Create a dictionary to store feedback counts
     feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
@@ -158,65 +87,35 @@ with st.container():
     def handle_feedback(feedback_type):
         feedback_counts[feedback_type] += 1
 
-    if st.session_state.messages:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
-    
     msgs = StreamlitChatMessageHistory(key="chat_messages")
 
-    last_output_message = []
-    last_user_message = []
+
+
+    # start off by having the agent post this: 
+    ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries.What can I do for you?"
+    if len(msgs.messages) == 0:
+        msgs.add_ai_message(ai_intro)
+
+    
+    if prompt := st.chat_input():
+        st.chat_message("human").write(prompt)
+        st_callback = StreamlitCallbackHandler(st.container())
+        prompt_formatted = gen_sql_prompt.format(context=prompt)
+        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
+        msgs.add_ai_message(response)
 
     for msg in msgs.messages:
         st.chat_message(msg.type).write(msg.content)
 
-    if prompt := st.chat_input():
-        st.chat_message("human").write(prompt)
-
-        st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
-        response = agent_executor.run(input=GEN_SQL + prompt, callbacks=[st_callback])
-        st.chat_message("ai").write(response)
-
-    #user_input = st.chat_input(translate("ask_a_question", language))
-
-    #if user_input:
-    #    # Add user message to the chat
-    #    with st.chat_message("user"):
-    #        st.markdown(user_input)
-##
- #    # Add user message to session state
- #    st.session_state.messages.append({"role": "user", "content": user_input})
-
- #    # Display "Kai is typing..."
- #    with st.chat_message("Kai"):
- #        st.markdown(translate("typing", language))
-
- #    st_callback = StreamlitCallbackHandler(st.container())
- #    output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
- #    # Add Kai's message to session state
- #    st.session_state.messages.append({"role": "Kai", "content": output})
-
- #    # Display Kai's message
- #    with st.chat_message("Kai"):
- #        st.markdown(output)
-
-#TODO: Connect the buttons back to the new langchain message history
-with st.container():    
+with st.container():
+    # get the output of the last message from the agent 
+    if len(msgs.messages) > 1:
+        last_output_message = msgs.messages[-1].content    
 
     
-    #for message in reversed(st.session_state.messages):
-    #    if message["role"] == "Kai":
-    #        last_output_message = message
-    #        break
-    #for message in reversed(st.session_state.messages):
-    #    if message["role"] =="user":
-    #        last_user_message = message
-    #        break  
-    if last_user_message:        
-        def execute_sql():
-            if last_user_message["content"]:
-                sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
+        if last_output_message:        
+            def execute_sql():
+                sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
                 for sql in sql_matches:
                     try:
                         #connect to snowflake using sqlalchemy engine and execute the sql query
@@ -224,43 +123,38 @@ with st.container():
                         df = engine.execute(sql).fetchall()
                         df = pd.DataFrame(df)
                         # Append messages
-                        st.session_state.messages.append({"role": "result", "content": df})
+                        #msgs.add_ai_message(df)
                         # Display messages
-                        with st.container():
-                            with st.chat_message("result"):
-                                st.dataframe(df)
-
-
+                        #with st.container():
+                            #with st.chat_message("result"):
+                                #st.dataframe(df)
                         st.sidebar.write("Results")
                         st.sidebar.dataframe(df)
                         # Spawn a new Ace editor
                         #with st.sidebar.container():
                         #    content = st_ace()
-#
+#  
                         ## Display editor's content as you type
                         #    content
-
-                        
                     except Exception as e:
                         st.write(e)
                         st.write(translate("invalid_query", language))
-        
-        st.button(translate("execute_sql", language), on_click=execute_sql)     
-        
-            
 
-        if st.button(translate("regenerate_response", language)):
-            st_callback = StreamlitCallbackHandler(st.container())
-            output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
-            sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-            st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
-            st.session_state.messages.append({"role": "Kai", "content": output})
-            with st.chat_message("Kai"):
-                st.markdown(output)
+            if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
+                st.button(translate("execute_sql", language), on_click=execute_sql)     
+
+
+
+            if st.button(translate("regenerate_response", language)):
+                st_callback = StreamlitCallbackHandler(st.container())
+                output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
+                sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+                st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
+                st.session_state.messages.append({"role": "Kai", "content": output})
+                with st.chat_message("Kai"):
+                    st.markdown(output)
         def clear_chat():
-            st.session_state.messages = []
-            last_result_message = None
-            last_output_message = None
+            msgs.clear()
             
         st.sidebar.button(translate("clear_chat", language), on_click=clear_chat)
         # Create two columns with custom widths
@@ -291,9 +185,9 @@ with st.container():
         else:
             # If both counts are equal or both are 0, set a default feedback
             feedback = "neutral"
-        log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
+        #log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
         headers = {'Content-Type': 'application/json'}
 
         # check if the url exists in the secrets
-        if "url" in st.secrets:
-            r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+        #if "url" in st.secrets:
+            #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
