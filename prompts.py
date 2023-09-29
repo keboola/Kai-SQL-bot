@@ -35,6 +35,8 @@ sql
 Copy code
 (select 1) union (select 2)
 For each question from the user, ensure to include a query in your response along with the results.
+
+Additionally, do not impose any arbitrary 'limit' clauses on the SQL queries you generate (e.g. limit 10) without reason.
 """
 )
 

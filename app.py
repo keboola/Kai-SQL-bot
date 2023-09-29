@@ -79,7 +79,9 @@ if language == 'Czech':
 if language == 'English':
     gen_sql_prompt = en_prompt_template
 
-with st.container():
+chat_container = st.container()
+
+with chat_container:
     # Create a dictionary to store feedback counts
     feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 
@@ -102,68 +104,56 @@ with st.container():
         st.chat_message(msg.type).write(msg.content)
 
     if prompt := st.chat_input():
+        msgs.add_user_message(prompt)
         st.chat_message("user").write(prompt)
 
         st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
         prompt_formatted = gen_sql_prompt.format(context=prompt)
-        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
+        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+        msgs.add_ai_message(response)
         st.chat_message("Kai").write(response)
 
-    with view_messages: """
-    Memory initialized with:
-    ```python
-    msgs = StreamlitChatMessageHistory(key="langchain_messages")
-    memory = ConversationBufferMemory(chat_memory=msgs)
-    ```
-
-    Contents of `st.session_state.langchain_messages`:
-    """
-    view_messages.json(st.session_state.chat_messages)
 
 with st.container():
     # get the output of the last message from the agent 
     if len(msgs.messages) > 1:
         last_output_message = msgs.messages[-1].content    
-
     
-        if last_output_message:        
-            def execute_sql():
-                sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
-                for sql in sql_matches:
-                    try:
-                        #connect to snowflake using sqlalchemy engine and execute the sql query
-                        engine = sqlalchemy.create_engine(conn_string)
-                        df = engine.execute(sql).fetchall()
-                        df = pd.DataFrame(df)
-                        # Append messages
-                        #msgs.add_ai_message(df)
-                        # Display messages
-                        #with st.container():
-                            #with st.chat_message("result"):
-                                #st.dataframe(df)
-                        st.sidebar.write("Results")
-                        st.sidebar.dataframe(df)
-                        # Spawn a new Ace editor
-                        #with st.sidebar.container():
-                        #    content = st_ace()
-#  
-                        ## Display editor's content as you type
-                        #    content
-                    except Exception as e:
-                        st.write(e)
-                        st.write(translate("invalid_query", language))
-
-            if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
-                st.button(translate("execute_sql", language), on_click=execute_sql)     
-
-
-
-            if st.button(translate("regenerate_response", language)):
-                st_callback = StreamlitCallbackHandler(st.container())
-                response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
-                sql_match = re.search(r"```sql\n(.*)\n```", response, re.DOTALL)
-                st.chat_message("Kai").write(response)
-
+           
+        def execute_sql():
+            sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
+            for sql in sql_matches:
+                try:
+                    #connect to snowflake using sqlalchemy engine and execute the sql query
+                    engine = sqlalchemy.create_engine(conn_string)
+                    df = engine.execute(sql).fetchall()
+                    df = pd.DataFrame(df)
+                    # Append messages
+                    #msgs.add_ai_message(df)
+                    # Display messages
+                    #with st.container():
+                        #with st.chat_message("result"):
+                            #st.dataframe(df)
+                    st.sidebar.write("Results")
+                    st.sidebar.dataframe(df)
+                    # Spawn a new Ace editor
+                    #with st.sidebar.container():
+                    #    content = st_ace()
+# 
+                    ## Display editor's content as you type
+                    #    content
+                except Exception as e:
+                    st.write(e)
+                    st.write(translate("invalid_query", language))
+        if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
+            st.button(translate("execute_sql", language), on_click=execute_sql)     
+        #if st.button(translate("regenerate_response", language)):
+        #    with chat_container:
+        #        st_callback = StreamlitCallbackHandler(chat_container)
+        #        prompt_formatted = gen_sql_prompt.format(context=prompt)
+        #        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
+        #        sql_match = re.search(r"```sql\n(.*)\n```", response, re.DOTALL)
+        #        st.chat_message("Kai").write(response)
         def clear_chat():
             msgs.clear()
             
@@ -198,6 +188,16 @@ with st.container():
             feedback = "neutral"
         #log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
         headers = {'Content-Type': 'application/json'}
+        with view_messages: """
+    Memory initialized with:
+    ```python
+    msgs = StreamlitChatMessageHistory(key="langchain_messages")
+    memory = ConversationBufferMemory(chat_memory=msgs)
+    ```
+
+    Contents of `st.session_state.langchain_messages`:
+    """
+    view_messages.json(st.session_state.chat_messages)
 
         # check if the url exists in the secrets
         #if "url" in st.secrets:
