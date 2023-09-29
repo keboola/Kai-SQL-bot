@@ -81,11 +81,10 @@ else:
         handle_parsing_errors=True,
         max_iterations=100,
         agent_type=AgentType.OPENAI_FUNCTIONS,
-        extra_tools = tools
+        # extra_tools = tools
         #prefix=custom_prefix,
         #suffix=custom_suffix,
         #format_instructions=custom_format_instructions
-        
     )
 
 
@@ -254,16 +253,16 @@ with st.container():
 
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 #!-------------------------------------       
-    if last_user_message:  #executes render button      
-        if st.button(translate("Visualize Data", language)):
-            agent.run("visualize the data provided in the csv file. Return only one graph that makes the most sense")
-            try:
-                fig = plt.gcf()
-                st.pyplot(fig)
+    # if last_user_message:  #executes render button      
+    #     if st.button(translate("Visualize Data", language)):
+    #         agent.run("visualize the data provided in the csv file. Return only one graph that makes the most sense")
+    #         try:
+    #             fig = plt.gcf()
+    #             st.pyplot(fig)
                 
-            except Exception as e:
-                st.write(f"Error excecuting code: {e}")
-                st.write("valid_graph")
+    #         except Exception as e:
+    #             st.write(f"Error excecuting code: {e}")
+    #             st.write("valid_graph")
 
 #!-------------------------------------
 
