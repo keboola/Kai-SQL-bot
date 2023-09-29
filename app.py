@@ -47,8 +47,8 @@ def translate(key, lang="English"):
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
-llm = OpenAI(temperature=0, streaming=True)
-#llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
+#llm = OpenAI(temperature=0, streaming=True)
+llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
@@ -113,7 +113,14 @@ with chat_container:
 
         st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
         prompt_formatted = gen_sql_prompt.format(context=prompt)
-        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+        try:
+            response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+        except ValueError as e:
+            response = str(e)
+            if not response.startswith("Could not parse LLM output: `"):
+                raise e
+        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+
         msgs.add_ai_message(response)
         st.chat_message("Kai").write(response)
 

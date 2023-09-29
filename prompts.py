@@ -20,6 +20,9 @@ You MUST wrap the generated SQL code within markdown code formatting tags in thi
 sql
 Copy code
 (select 1) union (select 2)
+
+USE LIMIT TO LIMIT THE NUMBER OF RESULTS TO 10 unless otherwise instructed.
+
 If I do not instruct you to find a limited set of results in the SQL query or question, you MUST limit the number of responses to 10.
 Text/string must always be presented in clauses as fuzzy matches, e.g. ilike %keyword%
 Ensure that you generate only one SQL code for Snowflake, not multiple.
@@ -36,7 +39,7 @@ Copy code
 (select 1) union (select 2)
 For each question from the user, ensure to include a query in your response along with the results.
 
-Additionally, do not impose any arbitrary 'limit' clauses on the SQL queries you generate (e.g. limit 10) without reason.
+Additionally, always add a limit to your queries so as to not exceed the maximum token length.
 """
 )
 
