@@ -49,12 +49,10 @@ memory = ConversationBufferMemory(chat_memory=msgs)
 
 
 model_selection = st.sidebar.selectbox("Choose a model", ['default', 'gpt-4', 'gpt-3.5-turbo-16k'], help="Select the model you want to use for the chatbot.")
-if model_selection == 'gpt-4': 
-    llm = ChatOpenAI(model='gpt-4', temperature=0, streaming=True)
-elif model_selection == 'gpt-3.5-turbo-16k':
-    llm = ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0, streaming=True)
-else:
+if model_selection == 'default':
     llm = OpenAI(temperature=0, streaming=True)
+else:
+    llm = ChatOpenAI(model=model_selection, temperature=0, streaming=True)
 
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
