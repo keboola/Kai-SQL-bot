@@ -119,7 +119,7 @@ with chat_container:
             response = str(e)
             if not response.startswith("Could not parse LLM output: `"):
                 raise e
-        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+            response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
         msgs.add_ai_message(response)
         st.chat_message("Kai").write(response)
