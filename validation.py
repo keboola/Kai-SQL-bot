@@ -63,9 +63,16 @@ with open('validation.json', 'r') as f:
 print('Data loaded')
 
 for i in range(len(data)):
+
     print(f"Question: {data[i]['question']}")
     prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
-    response = agent_executor.run(input=prompt_formatted, memory=memory)
+    try:
+        response = agent_executor.run(input=prompt_formatted, memory=memory)
+    except ValueError as e:
+        response = str(e)
+        if not response.startswith("Could not parse LLM output: `"):
+            raise e
+        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
     evaluation = evaluator.evaluate_strings(
     prediction=response,

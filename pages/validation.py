@@ -73,10 +73,20 @@ with open('validation.json', 'r') as f:
 st.write('Data loaded')
 st.balloons()
 
+evaluation_output = {}
+
 for i in range(len(data)):
     st.write(f"Question: {data[i]['question']}")
     prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
-    response = agent_executor.run(input=prompt_formatted, memory=memory)
+    try:
+        response = agent_executor.run(input=prompt_formatted, memory=memory)
+    except ValueError as e:
+        response = str(e)
+        if not response.startswith("Could not parse LLM output: `"):
+            if response.startswith("InvalidRequestError: This model's maximum context length is "):
+                response = "Model context length exceeded. Please try again."
+            raise e
+        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
     evaluation = evaluator.evaluate_strings(
     prediction=response,
@@ -88,8 +98,23 @@ for i in range(len(data)):
     st.write(f"Prediction: {response}")
     st.write(evaluation)
 
-    if score < 0.5:
-        result = 'fail'
+    evaluation_output[i] = {
+        "question": data[i]['question'],
+        "answer": data[i]['answer'],
+        "prediction": response,
+        "evaluation": evaluation
+    }
+
+st.write("Evaluation complete")
+
+df = pd.DataFrame.from_dict(evaluation_output, orient='index')
+
+st.write("Evaluation results:")
+st.dataframe(df)
+
+
+
+
 
 
 

@@ -35,8 +35,6 @@ st.markdown(f"""# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
 
-
-
 def translate(key, lang="English"):
     # Define the path to the JSON file inside the 'languages' folder
     file_path = os.path.join(image_path+"/languages", f"{lang.lower()}.json")
