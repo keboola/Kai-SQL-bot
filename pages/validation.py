@@ -83,7 +83,7 @@ for i in range(len(data)):
     except ValueError as e:
         response = str(e)
         if not response.startswith("Could not parse LLM output: `"):
-            if response.startswith("InvalidRequestError: This model's maximum context length is "):
+            if response.startswith("InvalidRequestError: This model's maximum context length"):
                 response = "Model context length exceeded. Please try again."
             raise e
         response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")

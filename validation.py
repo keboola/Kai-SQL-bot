@@ -25,6 +25,11 @@ models = ['gpt-3.5-turbo-instruct', 'gpt-3.5-turbo-16k', 'gpt-4']
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
+
+ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
+
+if len(msgs.messages) == 0:
+   msgs.add_ai_message(ai_intro)
 llm = ChatOpenAI(model=models[1], temperature=0)
 
 def initialize_connection():
