@@ -1,0 +1,14 @@
+[
+{
+    "question": "How many tables are there in the database?", 
+    "answer": "There are 11 tables in the database."
+},
+{
+    "question": "How many orders are there?",
+    "answer": "here are 2746 orders. Here is the SQL code to get the count of orders: SELECT COUNT(*) FROM \"order\""
+},
+{
+    "question": "Help me write a query to find the number of orders placed by each customer.",
+    "answer": "SELECT CustomerID, COUNT(OrderID) FROM Orders GROUP BY CustomerID;"
+}
+]

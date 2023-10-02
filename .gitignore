@@ -4,4 +4,5 @@ src/workspace_connection/__pycache__/*
 secrets.toml
 snowflake_sql_agent.ipynb
 .DS_Store
-__pycache__/prompts.cpython-311.pyc
+__pycache__/*
+*.pyc

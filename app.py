@@ -20,7 +20,9 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 
-from langchain.callbacks import StreamlitCallbackHandler
+from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
+
+
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import en_prompt_template, cz_prompt_template
@@ -34,6 +36,36 @@ home_title = "Kai SQL Bot"  # Replace with your title
 st.markdown(f"""# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta</span>""", unsafe_allow_html=True)
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
+
+
+def snowflake_sqlalchemy_20_monkey_patches():
+    import sqlalchemy.util.compat
+
+    # make strings always return unicode strings
+    sqlalchemy.util.compat.string_types = (str,)
+    sqlalchemy.types.String.RETURNS_UNICODE = True
+
+    import snowflake.sqlalchemy.snowdialect
+
+    snowflake.sqlalchemy.snowdialect.SnowflakeDialect.returns_unicode_strings = True
+
+    # make has_table() support the `info_cache` kwarg
+    import snowflake.sqlalchemy.snowdialect
+
+    def has_table(self, connection, table_name, schema=None, info_cache=None):
+        """
+        Checks if the table exists
+        """
+        return self._has_object(connection, "TABLE", table_name, schema)
+
+    snowflake.sqlalchemy.snowdialect.SnowflakeDialect.has_table = has_table
+
+
+# usage: call this function before creating an engine:
+try:
+    snowflake_sqlalchemy_20_monkey_patches()
+except Exception as e:
+    raise ValueError("Please run `pip install snowflake-sqlalchemy`")
 
 def translate(key, lang="English"):
     # Define the path to the JSON file inside the 'languages' folder
@@ -52,7 +84,7 @@ model_selection = st.sidebar.selectbox("Choose a model", ['default', 'gpt-4', 'g
 if model_selection == 'default':
     llm = OpenAI(temperature=0, streaming=True)
 else:
-    llm = ChatOpenAI(model=model_selection, temperature=0, streaming=True)
+    llm = ChatOpenAI(model=model_selection, temperature=0,streaming=True)
 
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
@@ -72,7 +104,7 @@ def initialize_connection():
         handle_parsing_errors=True,
         max_iterations=100,
         agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        memory=memory
+        memory=memory,
     )
     return agent_executor, conn_string
 
@@ -114,6 +146,7 @@ with chat_container:
         st.chat_message("user").write(prompt)
 
         st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+        human_callback = HumanApprovalCallbackHandler()
         prompt_formatted = gen_sql_prompt.format(context=prompt)
         try:
             response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
