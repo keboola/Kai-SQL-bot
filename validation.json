@@ -10,5 +10,9 @@
 {
     "question": "Help me write a query to find the number of orders placed by each customer.",
     "answer": "SELECT CustomerID, COUNT(OrderID) FROM Orders GROUP BY CustomerID;"
+},
+{
+    "question": "What is my best selling product over the past 30 day?",
+    "answer": "The best selling product over the past 30 days is \"CONVERSE | CHUCK TAYLOR ALL STAR II HI\". Here is the SQL code to get the best selling product: SELECT \"p\".\"title\", SUM(\"l\".\"quantity\") AS \"total_quantity\" FROM \"order\" AS \"o\" JOIN \"line_item\" AS \"l\" ON \"o\".\"id\" =\"l\".\"order_id\" JOIN \"product\" AS \"p\" ON \"l\".\"product_id\" = \"p\".\"id\" WHERE \"o\".\"processed_at\" >= DATEADD(DAY, -30, CURRENT_DATE()) GROUP BY \"p\".\"title\" ORDER BY \"total_quantity\" DESC LIMIT 1"
 }
 ]

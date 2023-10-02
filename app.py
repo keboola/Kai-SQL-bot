@@ -22,8 +22,6 @@ from langchain.prompts import PromptTemplate
 
 from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
 
-
-
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import en_prompt_template, cz_prompt_template
 
@@ -38,34 +36,6 @@ st.markdown(f"""# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta
 openai.api_key = st.secrets.OPENAI_API_KEY
 
 
-def snowflake_sqlalchemy_20_monkey_patches():
-    import sqlalchemy.util.compat
-
-    # make strings always return unicode strings
-    sqlalchemy.util.compat.string_types = (str,)
-    sqlalchemy.types.String.RETURNS_UNICODE = True
-
-    import snowflake.sqlalchemy.snowdialect
-
-    snowflake.sqlalchemy.snowdialect.SnowflakeDialect.returns_unicode_strings = True
-
-    # make has_table() support the `info_cache` kwarg
-    import snowflake.sqlalchemy.snowdialect
-
-    def has_table(self, connection, table_name, schema=None, info_cache=None):
-        """
-        Checks if the table exists
-        """
-        return self._has_object(connection, "TABLE", table_name, schema)
-
-    snowflake.sqlalchemy.snowdialect.SnowflakeDialect.has_table = has_table
-
-
-# usage: call this function before creating an engine:
-try:
-    snowflake_sqlalchemy_20_monkey_patches()
-except Exception as e:
-    raise ValueError("Please run `pip install snowflake-sqlalchemy`")
 
 def translate(key, lang="English"):
     # Define the path to the JSON file inside the 'languages' folder
