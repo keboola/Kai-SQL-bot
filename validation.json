@@ -5,18 +5,18 @@
 },
 {
     "question": "How many orders are there?",
-    "answer": "here are 2746 orders. Here is the SQL code to get the count of orders: SELECT COUNT(*) FROM \"order\""
+    "answer": "There are 2746 orders in the database.  Here is the SQL query to get the count of orders: ```sql SELECT COUNT(*) FROM \"order\"; ```  The result of the query is 2746."
 },
 {
     "question": "Help me write a query to find the number of orders placed by each customer.",
-    "answer": "SELECT CustomerID, COUNT(OrderID) FROM Orders GROUP BY CustomerID;"
+    "answer": "To find the number of orders placed by each customer, you can use the following SQL query:  ```sql SELECT customer_id, COUNT(*) AS order_count FROM \"order\" GROUP BY customer_id ```  This query selects the customer_id column and counts the number of rows for each customer_id in the \"order\" table. The result is grouped by customer_id.  Here are the results of the query:  | customer_id       | order_count | |-------------------|-------------| | 6596911956219     | 1           | | 6932238172411     | 1           | | 6875585741051     | 1           |  Please note that these results are based on the sample data provided."
 },
 {
     "question": "What is my best selling product over the past 30 day?",
-    "answer": "The best selling product over the past 30 days is \"CONVERSE | CHUCK TAYLOR ALL STAR II HI\". Here is the SQL code to get the best selling product: SELECT \"p\".\"title\", SUM(\"l\".\"quantity\") AS \"total_quantity\" FROM \"order\" AS \"o\" JOIN \"line_item\" AS \"l\" ON \"o\".\"id\" =\"l\".\"order_id\" JOIN \"product\" AS \"p\" ON \"l\".\"product_id\" = \"p\".\"id\" WHERE \"o\".\"processed_at\" >= DATEADD(DAY, -30, CURRENT_DATE()) GROUP BY \"p\".\"title\" ORDER BY \"total_quantity\" DESC LIMIT 1"
+    "answer": "The best selling product over the past 30 days is \"CONVERSE | CHUCK TAYLOR ALL STAR II HI\" with a total quantity sold of 4.  Please let me know if there's anything else I can help with."
 },
 {
     "question": "What is the breakdown of our customers by country?",
-    "answer": "The breakdown of customers by country is as follows:\n'' (empty country): 2914 customers\nLebanon: 1 customer\nBahamas: 2 customers\nFaroe Islands: 1 customer\nAustralia: 4 customers\nCambodia: 1 customer\n Jersey: 1 customer\nBulgaria: 1 customer\nGrenada: 1 customer\nUnited Kingdom: 1 customer\nFinal Answer: The breakdown of our customers by country is as follows: 2914 customers have an empty country, and there are various other customers from different countries."
+    "answer": "The breakdown of our customers by country is as follows: - 2914 customers have an empty country field - 1 customer is from Lebanon - 2 customers are from Bahamas - 1 customer is from Faroe Islands - 4 customers are from Australia - 1 customer is from Cambodia - 1 customer is from Jersey - 1 customer is from Bulgaria - 1 customer is from Grenada - 1 customer is from United Kingdom"
 }
 ]

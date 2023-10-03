@@ -1,4 +1,5 @@
 import openai
+import re
 import streamlit as st
 import json
 import pandas as pd
@@ -22,8 +23,8 @@ from prompts import en_prompt_template
 
 st.header("Validation page")
 
-
 models = ['gpt-3.5-turbo-instruct', 'gpt-3.5-turbo-16k', 'gpt-4']
+agent_types = [AgentType.ZERO_SHOT_REACT_DESCRIPTION, AgentType.OPENAI_FUNCTIONS]
 
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
@@ -40,19 +41,24 @@ def initialize_connection():
     role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
+    
+    return db
+
+db = initialize_connection()   
+
+def generate_agent_executor(db, llm, memory, max_iterations, agent_type):
     toolkit = SQLDatabaseToolkit(llm=llm, db=db)
     agent_executor = create_sql_agent(
         llm=llm,
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=10,
-        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        max_iterations=max_iterations,
+        agent_type=agent_type,
         memory=memory,
     )
-    return agent_executor, conn_string
 
-agent_executor, conn_string = initialize_connection()   
+    return agent_executor
 
 
 gen_sql_prompt = en_prompt_template
@@ -67,37 +73,49 @@ with open('validation.json', 'r') as f:
 st.write('Data loaded')
 st.balloons()
 
+n = 0
 evaluation_output = {}
 
-for i in range(len(data)):
-    st.write(f"Question: {data[i]['question']}")
-    prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
-    try:
-        response = agent_executor.run(input=prompt_formatted, memory=memory)
-    except ValueError as e:
-        response = str(e)
-        if not response.startswith("Could not parse LLM output: `"):
-            raise e
-        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
-    except openai.InvalidRequestError as e:
-        response = str(e)
-        if response.startswith("InvalidRequestError: This model's maximum context length%"):
-                response = "Model context length exceeded. Please try again."
+#  for each LLM and agent type combination, run the validation examples and evaluate the results
+for model in models:
+    # use the agent executor function to create an agent executor for each model and agent type combination
+    for agent in agent_types:
+        agent_executor = generate_agent_executor(db, llm, memory, 10, agent)
+        st.write(f"Running validation for model {model} and agent type {agent}")
+        for i in range(len(data)):
+            n += 1
+            st.write(f"Question: {data[i]['question']}")
+            prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
+            try:
+                response = agent_executor.run(input=prompt_formatted, memory=memory)
+            except ValueError as e:
+                response = str(e)
+                if not response.startswith("Could not parse LLM output: `"):
+                    raise e
+                response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+            except openai.InvalidRequestError as e:
+                response = str(e)
+                if response.startswith("InvalidRequestError: This model's maximum context length%"):
+                        response = "Model context length exceeded. Please try again."
 
-    evaluation = evaluator.evaluate_strings(
-    prediction=response,
-    reference=data[i]['answer'],
-    )
-    st.write(f"Answer: {data[i]['answer']}")
-    st.write(f"Prediction: {response}")
-    st.write(evaluation)
+            evaluation = evaluator.evaluate_strings(
+            prediction=response,
+            reference=data[i]['answer'],
+            )
+            st.write(f"Answer: {data[i]['answer']}")
+            st.write(f"Prediction: {response}")
+            st.write(evaluation)
 
-    evaluation_output[i] = {
-        "question": data[i]['question'],
-        "answer": data[i]['answer'],
-        "prediction": response,
-        "evaluation": evaluation
-    }
+            evaluation_output[n] = {
+                "model": model,
+                "agent_type": agent,
+                "question": data[i]['question'],
+                "answer": data[i]['answer'],
+                "prediction": response,
+                "evaluation": evaluation
+            }
+
+
 
 st.write("Evaluation complete")
 
@@ -117,7 +135,6 @@ if avg_score >= 0.1:
 
 else:
     st.success("The evaluation passed!")
-
 
 
 st.dataframe(df)
