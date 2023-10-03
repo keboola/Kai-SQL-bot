@@ -14,5 +14,20 @@
 {
     "question": "What is my best selling product over the past 30 day?",
     "answer": "The best selling product over the past 30 days is \"CONVERSE | CHUCK TAYLOR ALL STAR II HI\". Here is the SQL code to get the best selling product: SELECT \"p\".\"title\", SUM(\"l\".\"quantity\") AS \"total_quantity\" FROM \"order\" AS \"o\" JOIN \"line_item\" AS \"l\" ON \"o\".\"id\" =\"l\".\"order_id\" JOIN \"product\" AS \"p\" ON \"l\".\"product_id\" = \"p\".\"id\" WHERE \"o\".\"processed_at\" >= DATEADD(DAY, -30, CURRENT_DATE()) GROUP BY \"p\".\"title\" ORDER BY \"total_quantity\" DESC LIMIT 1"
+},
+{
+    "question": "What is the breakdown of our customers by country?",
+    "answer": "The breakdown of customers by country is as follows:
+    '' (empty country): 2914 customers
+    Lebanon: 1 customer
+    Bahamas: 2 customers
+    Faroe Islands: 1 customer
+    Australia: 4 customers
+    Cambodia: 1 customer
+    Jersey: 1 customer
+    Bulgaria: 1 customer
+    Grenada: 1 customer
+    United Kingdom: 1 customer
+    Final Answer: The breakdown of our customers by country is as follows: 2914 customers have an empty country, and there are various other customers from different countries."
 }
 ]

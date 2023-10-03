@@ -48,7 +48,7 @@ def initialize_connection():
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=100,
+        max_iterations=10,
         agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         memory=memory,
     )
@@ -84,7 +84,6 @@ for i in range(len(data)):
     reference=data[i]['answer'],
     )
 
-    print(f"Question: {data[i]['question']}")
     print(f"Answer: {data[i]['answer']}")
     print(f"Prediction: {response}")
     print(evaluation)

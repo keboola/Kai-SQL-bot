@@ -1,10 +1,6 @@
 import openai
-import re
 import streamlit as st
-import os
-import sqlalchemy
 import json
-import requests
 import pandas as pd
 
 from streamlit_ace import st_ace
@@ -20,8 +16,6 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 from langchain.evaluation import load_evaluator
-
-
 
 from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
 from prompts import en_prompt_template
@@ -52,7 +46,7 @@ def initialize_connection():
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=100,
+        max_iterations=10,
         agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
         memory=memory,
     )
@@ -83,17 +77,17 @@ for i in range(len(data)):
     except ValueError as e:
         response = str(e)
         if not response.startswith("Could not parse LLM output: `"):
-            if response.startswith("InvalidRequestError: This model's maximum context length"):
-                response = "Model context length exceeded. Please try again."
             raise e
         response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+    except openai.InvalidRequestError as e:
+        response = str(e)
+        if response.startswith("InvalidRequestError: This model's maximum context length%"):
+                response = "Model context length exceeded. Please try again."
 
     evaluation = evaluator.evaluate_strings(
     prediction=response,
     reference=data[i]['answer'],
     )
-
-    st.write(f"Question: {data[i]['question']}")
     st.write(f"Answer: {data[i]['answer']}")
     st.write(f"Prediction: {response}")
     st.write(evaluation)
@@ -109,8 +103,32 @@ st.write("Evaluation complete")
 
 df = pd.DataFrame.from_dict(evaluation_output, orient='index')
 
+# change the 'evaluation' column to be called 'score' and extract the score from the dictionary in the column
+df['score'] = df['evaluation'].apply(lambda x: x['score'])
+
 st.write("Evaluation results:")
+
+avg_score = df['score'].mean()
+
+st.metric(label="Average evaluation score", value=avg_score)
+
+if avg_score >= 0.1:
+     st.error("The evaluation failed. Please try again.")
+
+else:
+    st.success("The evaluation passed!")
+
+
+
 st.dataframe(df)
+
+
+# append the current timestamp as a column to the dataframe
+df['timestamp'] = pd.Timestamp.now()
+
+# append the dataframe to the test/evaluation_output.csv file
+
+df.to_csv('evaluation_output.csv', mode='a', header=False, index=False)
 
 
 

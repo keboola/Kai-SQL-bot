@@ -45,9 +45,7 @@ How many orders are there?
 Agent Output:
 There are [X] orders.
 Here is the SQL code to get the count of orders:
-```sql
-select count(*) from "orders"
-```
+select count(*) from "orders";
 
 User input:
 Help me find the LTV of my customers who have purchased more than 2 times.
