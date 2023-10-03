@@ -17,17 +17,6 @@
 },
 {
     "question": "What is the breakdown of our customers by country?",
-    "answer": "The breakdown of customers by country is as follows:
-    '' (empty country): 2914 customers
-    Lebanon: 1 customer
-    Bahamas: 2 customers
-    Faroe Islands: 1 customer
-    Australia: 4 customers
-    Cambodia: 1 customer
-    Jersey: 1 customer
-    Bulgaria: 1 customer
-    Grenada: 1 customer
-    United Kingdom: 1 customer
-    Final Answer: The breakdown of our customers by country is as follows: 2914 customers have an empty country, and there are various other customers from different countries."
+    "answer": "The breakdown of customers by country is as follows:\n'' (empty country): 2914 customers\nLebanon: 1 customer\nBahamas: 2 customers\nFaroe Islands: 1 customer\nAustralia: 4 customers\nCambodia: 1 customer\n Jersey: 1 customer\nBulgaria: 1 customer\nGrenada: 1 customer\nUnited Kingdom: 1 customer\nFinal Answer: The breakdown of our customers by country is as follows: 2914 customers have an empty country, and there are various other customers from different countries."
 }
 ]
