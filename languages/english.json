@@ -10,5 +10,6 @@
     "valid_query": "Please make sure your SQL query is valid",
     "clear_chat": "Clear chat",
     "regenerate_response":"Regenerate response",
-    "execute_sql":"Execute SQL"
+    "execute_sql":"Execute SQL",
+    "ai_intro" : "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
   }
