@@ -10,5 +10,6 @@
     "valid_query":"Ujistěte se, že váš SQL dotaz je platný",
     "clear_chat":"Vymazat chat",
     "regenerate_response":"Regenerovat odezvu",
-    "execute_sql":"Proveďte SQL"
+    "execute_sql":"Proveďte SQL",
+    "ai_intro" : "Ahoj, já jsem Kai, váš AI SQL Bot. Jsem tu, abych vám pomohl s SQL dotazy. Co pro vás mohu udělat?"
   }
