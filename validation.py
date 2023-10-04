@@ -1,5 +1,5 @@
 import openai
-
+import streamlit as st
 import os
 
 import json
@@ -22,14 +22,7 @@ print("Validation page")
 
 models = ['gpt-3.5-turbo-instruct', 'gpt-3.5-turbo-16k', 'gpt-4']
 
-msgs = StreamlitChatMessageHistory(key="chat_messages")
-memory = ConversationBufferMemory(chat_memory=msgs)
 
-
-ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
-
-if len(msgs.messages) == 0:
-   msgs.add_ai_message(ai_intro)
 llm = ChatOpenAI(model=models[1], temperature=0)
 
 def initialize_connection():
@@ -50,7 +43,6 @@ def initialize_connection():
         handle_parsing_errors=True,
         max_iterations=10,
         agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        memory=memory,
     )
     return agent_executor, conn_string
 
