@@ -16,6 +16,8 @@ Here is the user input:
 
 {context}
 
+
+Before doing anything else, you should first get the similar examples you know.
 IMPORTANT:
 The most critical rule is that you MUST generate valid SQL code for Snowflake.
 

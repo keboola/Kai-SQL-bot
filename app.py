@@ -25,6 +25,8 @@ from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackH
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import en_prompt_template, cz_prompt_template
 
+from few_shot_examples import custom_tool_list, custom_suffix
+
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 st.image(image_path+'/static/keboola_logo.png', width=200)
@@ -71,8 +73,10 @@ def initialize_connection():
         verbose=True,
         handle_parsing_errors=True,
         max_iterations=100,
+        extra_tools=custom_tool_list,
         agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-        memory=memory,
+        memory=memory
+        #suffix=custom_suffix
     )
     return agent_executor, conn_string
 

@@ -5,3 +5,4 @@ openai==0.27.8
 snowflake-sqlalchemy==1.4.7
 streamlit-ace
 rapidfuzz
+faiss-cpu

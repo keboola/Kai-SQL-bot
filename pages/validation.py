@@ -66,7 +66,7 @@ gen_sql_prompt = en_prompt_template
 # grab the validation.json file and loop through it to call agent_executor.run
 # for each validation example
 
-evaluator = load_evaluator("string_distance")
+evaluator = load_evaluator("pairwise_string")
 with open('validation.json', 'r') as f:
     data = json.load(f)
 
@@ -98,9 +98,10 @@ for model in models:
                 if response.startswith("InvalidRequestError: This model's maximum context length%"):
                         response = "Model context length exceeded. Please try again."
 
-            evaluation = evaluator.evaluate_strings(
+            evaluation = evaluator.evaluate_string_pairs(
             prediction=response,
-            reference=data[i]['answer'],
+            prediction_b=data[i]['answer'],
+            input=data[i]['question'],
             )
             st.write(f"Answer: {data[i]['answer']}")
             st.write(f"Prediction: {response}")
