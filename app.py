@@ -76,9 +76,9 @@ snfl_db = translate("snfl_db", language)
 # Intiializing connection variables
 agent_executor, conn_string = initialize_connection()   
 
-if language == 'Czech':
+if language == "Czech":
     gen_sql_prompt = cz_prompt_template
-if language == 'English':
+if language == "English":
     gen_sql_prompt = en_prompt_template
 
 chat_container = st.container()
