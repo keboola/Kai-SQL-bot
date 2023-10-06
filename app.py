@@ -146,7 +146,7 @@ Text / řetězec musíte vždy uvádět v klauzulích jako fuzzy match, např. i
 Ujistěte se, že generujete pouze jeden kód SQL pro Snowflake, ne více.
 Měli byste používat pouze uvedené sloupce tabulky <columns> a uvedenou tabulku <tableName>, NESMÍTE si vymýšlet názvy tabulek.
 NEUMISŤUJTE čísla na začátek názvů SQL proměnných.
-Poznámka: Ve vygenerovaných SQL dotazech použijte dvojité uvozovky kolem názvů sloupců a tabulek, aby se zachovalo správné psaní názvů. Například:
+Poznámka: Ve vygenerovaných SQL dotazech zahrňte sloupce a názvy tabulek do dvojitých uvozovek tam, kde je to vhodné, např.
 select "column_name" from "tableName";
 
 Nepřehlédněte, že pro fuzzy match dotazy (zejména pro sloupec variable_name) použijte "ilike %keyword%" a vygenerovaný SQL kód uzavřete do značek pro formátování markdownu ve tvaru např.
@@ -178,8 +178,9 @@ Text/string must always be presented in clauses as fuzzy matches, e.g. ilike %ke
 Ensure that you generate only one SQL code for Snowflake, not multiple.
 You should only use the table columns provided in <columns>, and the table provided in <tableName>, you MUST NOT create imaginary table names.
 DO NOT start SQL variables with numerals.
-Note: In the generated SQL queries, use double quotes around column and table names to ensure proper casing preservation, e.g.
-select "column_name" from "tableName";
+</rules>
+Note: Don't automatically convert the column_name and tableName to lower case and In the generated SQL queries, wrap column names and table names with double quotes wherever according to snowflake SQL, e.g.,
+select "column_name" from "tableName" in case of lowercase;
 
 Do not forget to use "ilike %keyword%" for fuzzy match queries (especially for the variable_name column)
 and wrap the generated SQL code with markdown code formatting tags in this format, e.g.
