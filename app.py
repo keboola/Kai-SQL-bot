@@ -5,25 +5,16 @@ import os
 import requests
 import sqlalchemy
 import json
-import sqlite3
-import csv
-import matplotlib
-import matplotlib.pyplot as plt
-import pandas as pd
+import webbrowser
 
-# from Kai_SQL_bot.Kai_Agent import create_Kai_Agent
-
-from langchain.agents import create_sql_agent, AgentExecutor, initialize_agent, Tool, AgentType, load_tools, ZeroShotAgent
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit, create_python_agent, create_csv_agent
+from streamlit_ace import st_ace
+from langchain.agents import create_sql_agent, AgentExecutor
+from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
 from langchain.llms.openai import OpenAI
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
-from langchain.tools.python.tool import PythonREPLTool
-from langchain import LLMChain, LLMMathChain, SerpAPIWrapper
-from langchain_experimental.sql import SQLDatabaseChain
-
 
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake, snowflake_connection_user_input
@@ -66,64 +57,21 @@ else:
     role_name = st.secrets["role_name"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
-    csvFile = "output.csv"
     toolkit = SQLDatabaseToolkit(llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0), db=db)
-    llm=ChatOpenAI(model='gpt-4-0613', temperature=0)
 
+  
 
-#!----------------------------------
-
-
-    # agent_executor = create_Kai_Agent(
-    #     llm=llm,
-    #     toolkit=toolkit,
-    #     verbose=True,
-    #     handle_parsing_errors=True,
-    #     max_iterations=100,
-    #     agent_type=AgentType.OPENAI_FUNCTIONS,
-    #     # extra_tools = tools
-    #     #prefix=custom_prefix,
-    #     #suffix=custom_suffix,
-    #     #format_instructions=custom_format_instructions
-    # )
-
-sql_agent = create_sql_agent(
-    llm=OpenAI(temperature=0),
+agent_executor = create_sql_agent(
+    llm=ChatOpenAI(model='gpt-4-0613', temperature=0),
     toolkit=toolkit,
-    agent_executor_kwargs={ # initilize own memory for sql_agent // this breaks the memory, but I think some variation of this should work
-        "memory": ConversationBufferMemory(
-            input_key="query", memory_key="history", return_messages= True
-        )
-    },
     verbose=True,
     handle_parsing_errors=True,
     max_iterations=100,
-    input_variables = ["query", "history", "agent_scratchpad"],
-    agent_type=AgentType.OPENAI_FUNCTIONS,
+    agent_type=AgentType.OPENAI_FUNCTIONS
+    #prefix=custom_prefix,
+    #suffix=custom_suffix,
+    #format_instructions=custom_format_instructions
 )
-
-python_agent = create_python_agent(
-    llm=OpenAI(temperature=0),
-    tool=PythonREPLTool(),
-    verbose=True,
-    agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
-)
-
-class KaiAgent:
-    def __init__(self, sql_agent, python_agent): #current thought process of running the agents with memory
-        self.sql_agent = sql_agent
-        self.python_agent = python_agent
-
-    def run(self, input):
-        try:
-            return self.sql_agent.run(input)
-        except Exception as e:
-            print(f"SQL agent failed with error {e}, trying Python agent")
-            return self.python_agent.run(input)
-
-agent_executor = KaiAgent(sql_agent, python_agent)
-
-#!----------------------------------
 
 
 CZ_GEN_SQL = """
@@ -146,7 +94,7 @@ Text / řetězec musíte vždy uvádět v klauzulích jako fuzzy match, např. i
 Ujistěte se, že generujete pouze jeden kód SQL pro Snowflake, ne více.
 Měli byste používat pouze uvedené sloupce tabulky <columns> a uvedenou tabulku <tableName>, NESMÍTE si vymýšlet názvy tabulek.
 NEUMISŤUJTE čísla na začátek názvů SQL proměnných.
-Poznámka: Ve vygenerovaných SQL dotazech zahrňte sloupce a názvy tabulek do dvojitých uvozovek tam, kde je to vhodné, např.
+Poznámka: Ve vygenerovaných SQL dotazech použijte dvojité uvozovky kolem názvů sloupců a tabulek, aby se zachovalo správné psaní názvů. Například:
 select "column_name" from "tableName";
 
 Nepřehlédněte, že pro fuzzy match dotazy (zejména pro sloupec variable_name) použijte "ilike %keyword%" a vygenerovaný SQL kód uzavřete do značek pro formátování markdownu ve tvaru např.
@@ -178,9 +126,8 @@ Text/string must always be presented in clauses as fuzzy matches, e.g. ilike %ke
 Ensure that you generate only one SQL code for Snowflake, not multiple.
 You should only use the table columns provided in <columns>, and the table provided in <tableName>, you MUST NOT create imaginary table names.
 DO NOT start SQL variables with numerals.
-</rules>
-Note: Don't automatically convert the column_name and tableName to lower case and In the generated SQL queries, wrap column names and table names with double quotes wherever according to snowflake SQL, e.g.,
-select "column_name" from "tableName" in case of lowercase;
+Note: In the generated SQL queries, use double quotes around column and table names to ensure proper casing preservation, e.g.
+select "column_name" from "tableName";
 
 Do not forget to use "ilike %keyword%" for fuzzy match queries (especially for the variable_name column)
 and wrap the generated SQL code with markdown code formatting tags in this format, e.g.
@@ -202,7 +149,8 @@ if language == 'English':
 # Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
+if "query" not in st.session_state:
+    st.session_state.query = []
 # Display chat messages from history
 with st.container():
     for message in st.session_state.messages:
@@ -224,10 +172,8 @@ with st.container():
             st.markdown(translate("typing", language))
 
         st_callback = StreamlitCallbackHandler(st.container())
-    #!----------------------------
         output = agent_executor.run(input=GEN_SQL + user_input, callbacks=[st_callback])
-    #!----------------------------
- 
+        
         # Add Kai's message to session state
         st.session_state.messages.append({"role": "Kai", "content": output})
 
@@ -246,7 +192,7 @@ with st.container():
         if message["role"] =="user":
             last_user_message = message
             break  
-    if last_user_message:  #executes SQL button      
+    if last_user_message:        
         if st.button(translate("execute_sql", language)):       
             #st.write(sql)
             # Execute the SQL query
@@ -260,25 +206,24 @@ with st.container():
                 
                 # this will find all the queries and run all of them
                 sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message["content"], re.DOTALL)
-
+                
                 for sql in sql_matches:
                     st.write(sql)    
-
+                    #adds sql to query session to pass to sqlCompiler
+                    st.session_state.query.append(sql)
                     try:
                         #connect to snowflake using sqlalchemy engine and execute the sql query
                         engine = sqlalchemy.create_engine(conn_string)
                         df = engine.execute(sql).fetchall()
-                        NateDf = pd.DataFrame(df) #!
                         st.dataframe(df)
+
                         st.session_state.messages.append({"role": "result", "content": df})
                         st.write(db.run(sql))
                         ##display the results as a dataframe
-                        NateDf.to_csv("output.csv", index=False) #!
                         for message in st.session_state.messages:
                             with st.chat_message(message["role"]):
                                 if message["role"] == "result":
                                     st.dataframe(message["content"])
-                                    
 
                     except Exception as e:
                         st.write(e)
@@ -287,32 +232,31 @@ with st.container():
             #log_data = "User: " + user_input + "\n" + "Kai: " + output + "\n"
 
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
-#!-------------------------------------       
-    # if last_user_message:  #executes render button      
-    #     if st.button(translate("Visualize Data", language)):
-    #         agent.run("visualize the data provided in the csv file. Return only one graph that makes the most sense")
-    #         try:
-    #             fig = plt.gcf()
-    #             st.pyplot(fig)
-                
-    #         except Exception as e:
-    #             st.write(f"Error excecuting code: {e}")
-    #             st.write("valid_graph")
 
-#!-------------------------------------
+        if st.button(translate("regenerate_response", language)):
+            st_callback = StreamlitCallbackHandler(st.container())
+            output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
+            sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
+            st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
+            st.session_state.messages.append({"role": "Kai", "content": output})
+            with st.chat_message("Kai"):
+                st.markdown(output)
 
-    if st.button(translate("regenerate_response", language)):
-        st_callback = StreamlitCallbackHandler(st.container())
-        output = agent_executor.run(input=GEN_SQL+last_user_message["content"]+"regenerate response", callbacks=[st_callback])
-        sql_match = re.search(r"```sql\n(.*)\n```", output, re.DOTALL)
-        st.session_state.messages.append({"role": "user", "content": last_user_message["content"]})
-        st.session_state.messages.append({"role": "Kai", "content": output})
-        with st.chat_message("Kai"):
-            st.markdown(output)
+        if st.button(translate("clear_chat", language)):
+            for key in st.session_state.keys():
+                del st.session_state[key]
 
-    if st.button(translate("clear_chat", language)):
-        for key in st.session_state.keys():
-            del st.session_state[key]
+        if st.button(translate("Test", language)):
+            st.write(st.session_state.query)
+
+        def open_ace_editor():
+            ace_editor_url = "http://localhost:8501/sqlCompiler"
+            webbrowser.open_new_tab(ace_editor_url)
+
+
+        if st.button(translate("Open SQL Editor", language)):
+            open_ace_editor()
+
 
 
                 
