@@ -2,6 +2,7 @@
 {
     "question": "How many tables are there in the database?", 
     "answer": "There are 11 tables in the database."
+    
 },
 {
     "question": "How many orders are there?",
