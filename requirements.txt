@@ -1,5 +1,5 @@
 streamlit
-langchain==0.0.304
+langchain==0.0.320
 SQLAlchemy
 openai==0.27.8
 snowflake-sqlalchemy==1.4.7
