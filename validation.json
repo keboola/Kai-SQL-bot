@@ -1,0 +1,23 @@
+[
+    {
+        "question": "How many tables are there in the database?", 
+        "answer": "There are 11 tables in the database."
+        
+    },
+    {
+        "question": "How many orders are there?",
+        "answer": "There are 2746 orders in the database.  Here is the SQL query to get the count of orders: ```sql SELECT COUNT(*) FROM \"order\"; ```  The result of the query is 2746."
+    },
+    {
+        "question": "Help me write a query to find the number of orders placed by each customer.",
+        "answer": "To find the number of orders placed by each customer, you can use the following SQL query:  ```sql SELECT customer_id, COUNT(*) AS order_count FROM \"order\" GROUP BY customer_id ```  This query selects the customer_id column and counts the number of rows for each customer_id in the \"order\" table. The result is grouped by customer_id.  Here are the results of the query:  | customer_id       | order_count | |-------------------|-------------| | 6596911956219     | 1           | | 6932238172411     | 1           | | 6875585741051     | 1           |  Please note that these results are based on the sample data provided."
+    },
+    {
+        "question": "What is my best selling product over the past 30 day?",
+        "answer": "The best selling product over the past 30 days is \"CONVERSE | CHUCK TAYLOR ALL STAR II HI\" with a total quantity sold of 4.  Please let me know if there's anything else I can help with."
+    },
+    {
+        "question": "What is the breakdown of our customers by country?",
+        "answer": "The breakdown of our customers by country is as follows: - 2914 customers have an empty country field - 1 customer is from Lebanon - 2 customers are from Bahamas - 1 customer is from Faroe Islands - 4 customers are from Australia - 1 customer is from Cambodia - 1 customer is from Jersey - 1 customer is from Bulgaria - 1 customer is from Grenada - 1 customer is from United Kingdom"
+    }
+    ]
