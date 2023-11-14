@@ -110,6 +110,14 @@ if language == 'English':
 #         matches = re.findall(r"text='(.*?)'", response)
 #         st.write(matches)
 
+def execute_ace_sql():
+    sql_query = st_ace()
+    ace_engine = create_engine(conn_string)
+    result_proxy = ace_engine.execute(sql_query)
+    ace_result = result_proxy.fetchall()
+    ace_df = pd.DataFrame(ace_result)
+    st.dataframe(ace_df)
+
 chat_container = st.container()
 
 with chat_container:
@@ -142,6 +150,29 @@ with chat_container:
             if not response.startswith("Could not parse LLM output: `"):
                 raise e
             response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+
+        if len(msgs.messages) > 1:
+            last_output_message = msgs.messages[-1].content
+
+        if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
+            # Writes all sql found in response to var
+            generated_query = str(re.findall(r"```sql\n(.*?)\n```", last_output_message,re.DOTALL))
+            # Uses query information as values to fill ace editor
+            ace_content = st_ace(
+                value = generated_query,
+                language= LANGUAGES[145],
+                auto_update = True,
+                theme=THEMES[3],
+                keybinding=KEYBINDINGS[3],
+                font_size=16,
+                min_lines=15,
+            )
+            # Include ace editor in response
+            response += ace_content
+
+            ## Add execute button
+            st.button(translate("execute_sql", language), on_click=execute_ace_sql) 
+
 
         msgs.add_ai_message(response)
         st.chat_message("Kai").write(response)
@@ -179,14 +210,14 @@ with chat_container:
 if "query" not in st.session_state:
     st.session_state['query'] = ""
 
-with st.container():
-    with st.sidebar.container():
-        query = st.session_state['query']
-        ace_content = ""
-        placeholder = st.empty()
+# with st.container():
+#     with st.sidebar.container():
+#         query = st.session_state['query']
+#         ace_content = ""
+#         placeholder = st.empty()
 
-        content = st_ace(language='python', keybinding='sublime', theme='monokai')
-        placeholder.markdown(content, unsafe_allow_html=True)
+#         content = st_ace(language='python', keybinding='sublime', theme='monokai')
+#         placeholder.markdown(content, unsafe_allow_html=True)
 
         # if st.button('Delete'):
         #     placeholder.empty()
@@ -258,10 +289,12 @@ with st.container():
                 except Exception as e:
                     st.write(e)
                     st.write(translate("invalid_query", language))
-        if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
-            generated_query = str(re.findall(r"```sql\n(.*?)\n```", last_output_message,re.DOTALL))
-            st.button(translate("open_sql_editor", language), on_click=create_ace_editor(generated_query))
-            st.button(translate("execute_sql", language), on_click=execute_sql)  
+        #Finds case of           
+        # if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
+
+        #     generated_query = str(re.findall(r"```sql\n(.*?)\n```", last_output_message,re.DOTALL))
+        #     st.button(translate("open_sql_editor", language), on_click=create_ace_editor(generated_query))
+        #     st.button(translate("execute_sql", language), on_click=execute_sql)  
 
         # if re.findall(r'\bSELECT\b', last_output_message, re.DOTALL):
         #     match = re.search('SELECT.*', last_output_message)
