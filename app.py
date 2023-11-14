@@ -110,8 +110,8 @@ if language == 'English':
 #         matches = re.findall(r"text='(.*?)'", response)
 #         st.write(matches)
 
-def execute_ace_sql():
-    sql_query = st_ace()
+def execute_ace_sql(query):
+    sql_query = query
     ace_engine = create_engine(conn_string)
     result_proxy = ace_engine.execute(sql_query)
     ace_result = result_proxy.fetchall()
@@ -169,8 +169,9 @@ with chat_container:
             )
 
             ## Add execute button
-            st.button(translate("execute_sql", language), on_click=execute_ace_sql) 
+            st.button(translate("execute_sql", language), on_click=execute_ace_sql(ace_content)) 
 
+        # Writes to messages so it can be re referenced by LLM for changes
         msgs.add_ai_message(response)
         msgs.add_ai_message(ace_content)
         st.chat_message("Kai").write(response)
