@@ -167,28 +167,14 @@ with chat_container:
                 font_size=16,
                 min_lines=15,
             )
-            # Include ace editor in response
-            response += ace_content
 
             ## Add execute button
             st.button(translate("execute_sql", language), on_click=execute_ace_sql) 
 
-
         msgs.add_ai_message(response)
+        msgs.add_ai_message(ace_content)
         st.chat_message("Kai").write(response)
-
-# Create an instance of the ace editor in the side bar
-# def create_ace_editor(initial_value):
-#     ace_content = st_ace(
-#         value = initial_value,
-#         language= LANGUAGES[145],
-#         auto_update = True,
-#         theme=THEMES[3],
-#         keybinding=KEYBINDINGS[3],
-#         font_size=16,
-#         min_lines=15,
-#     )
-#     return ace_content
+        st.chat_message("Kai").write(ace_content)
 
 # # Function to update the query
 # def update_query(ace_content, text_input, language):
@@ -210,85 +196,59 @@ with chat_container:
 if "query" not in st.session_state:
     st.session_state['query'] = ""
 
-# with st.container():
-#     with st.sidebar.container():
-#         query = st.session_state['query']
-#         ace_content = ""
-#         placeholder = st.empty()
-
-#         content = st_ace(language='python', keybinding='sublime', theme='monokai')
-#         placeholder.markdown(content, unsafe_allow_html=True)
-
-        # if st.button('Delete'):
-        #     placeholder.empty()
-
-        # text_input = st.text_input("Ask LLM for updated query")
-        # # col1, col2 = st.sidebar.columns(2)
-
-        # # with col1:
-        # if st.button('Update'):
-
-        #     query = create_ace_editor("First string")
-
-        # with col2:
-        #     if st.button('Excecute'):
-        #         query = create_ace_editor("Second string")
-                
-
-                # get the output of the last message from the agent 
     view_messages = st.sidebar.expander("View the message contents in session state")
 
     if len(msgs.messages) > 1:
         last_output_message = msgs.messages[-1].content    
     
            
-        def execute_sql():
-            sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
-            for sql in sql_matches:
-                try:
-                    #connect to snowflake using sqlalchemy engine and execute the sql query
-                    engine = sqlalchemy.create_engine(conn_string)
-                    df = engine.execute(sql).fetchall()
-                    df = pd.DataFrame(df)
-                    #add query to ace editor autofill
-                    st.session_state['query'] = sql
+        # def execute_sql():
+        #     sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
+        #     for sql in sql_matches:
+        #         try:
+        #             #connect to snowflake using sqlalchemy engine and execute the sql query
+        #             engine = sqlalchemy.create_engine(conn_string)
+        #             df = engine.execute(sql).fetchall()
+        #             df = pd.DataFrame(df)
+        #             #add query to ace editor autofill
+        #             st.session_state['query'] = sql
 
-                    # Append messages
-                    #msgs.add_ai_message(df)
-                    # Display messages
-                    #with st.container():
-                        #with st.chat_message("result"):
-                            #st.dataframe(df)
-                    st.sidebar.write("Results")
-                    st.sidebar.dataframe(df)
+        #             # Append messages
+        #             #msgs.add_ai_message(df)
+        #             # Display messages
+        #             #with st.container():
+        #                 #with st.chat_message("result"):
+        #                     #st.dataframe(df)
+        #             st.sidebar.write("Results")
+        #             st.sidebar.dataframe(df)
 
-                    # Spawn a new Ace editor with last query
-                    with st.sidebar.container():
-                        query = st.session_state['query']
-                        content = st_ace(
-                            value = query,
-                            language= LANGUAGES[145],
-                            theme=THEMES[3],
-                            keybinding=KEYBINDINGS[3],
-                            font_size=16,
-                            min_lines=15,
-                        )
+        #             # Spawn a new Ace editor with last query
+        #             with st.sidebar.container():
+        #                 query = st.session_state['query']
+        #                 content = st_ace(
+        #                     value = query,
+        #                     language= LANGUAGES[145],
+        #                     theme=THEMES[3],
+        #                     keybinding=KEYBINDINGS[3],
+        #                     font_size=16,
+        #                     min_lines=15,
+        #                 )
 
-                    def execute_ace_sql():
-                        sql_query = st_ace()
-                        ace_engine = create_engine(conn_string)
-                        result_proxy = ace_engine.execute(sql_query)
-                        ace_result = result_proxy.fetchall()
-                        ace_df = pd.DataFrame(ace_result)
-                        st.sidebar.dataframe(ace_df)
+        #             def execute_ace_sql():
+        #                 sql_query = st_ace()
+        #                 ace_engine = create_engine(conn_string)
+        #                 result_proxy = ace_engine.execute(sql_query)
+        #                 ace_result = result_proxy.fetchall()
+        #                 ace_df = pd.DataFrame(ace_result)
+        #                 st.sidebar.dataframe(ace_df)
 
-                    st.sidebar.button(translate("open_sql_editor", language), on_click=execute_ace_sql)
+        #             st.sidebar.button(translate("open_sql_editor", language), on_click=execute_ace_sql)
 
                     # Display editor's content as you type
                     #    content
-                except Exception as e:
-                    st.write(e)
-                    st.write(translate("invalid_query", language))
+                # except Exception as e:
+                #     st.write(e)
+                #     st.write(translate("invalid_query", language))
         #Finds case of           
         # if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
 
