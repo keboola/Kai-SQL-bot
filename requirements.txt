@@ -5,3 +5,4 @@ SQLAlchemy==1.4.17
 snowflake-sqlalchemy==1.2.4
 streamlit-chat
 kbcstorage
+git+https://github.com/wbond/oscrypto.git@d5f3437ed24257895ae1edd9e503cfb352e635a8
