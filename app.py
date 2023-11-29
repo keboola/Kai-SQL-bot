@@ -172,10 +172,13 @@ with chat_container:
             st.button(translate("execute_sql", language), on_click=execute_ace_sql(ace_content)) 
 
         # Writes to messages so it can be re referenced by LLM for changes
+
+            msgs.add_ai_message(ace_content)
+            st.chat_message("Kai").write(ace_content)
         msgs.add_ai_message(response)
-        msgs.add_ai_message(ace_content)
         st.chat_message("Kai").write(response)
-        st.chat_message("Kai").write(ace_content)
+
+        
 
 # # Function to update the query
 # def update_query(ace_content, text_input, language):
@@ -314,12 +317,6 @@ if "query" not in st.session_state:
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
 
 
-
-#do some changes of where the ace editor stands
-#maybe work on how to use the chat interchangably
-# make it take in a query and then chnage it and put it back into the editor
-#make this an api call to the LLM rather than a chain itself !!
-#pii
 
 
 
