@@ -19,7 +19,7 @@ from langchain.prompts import PromptTemplate
 from langchain.evaluation import load_evaluator
 
 from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
-from prompts import en_prompt_template
+from prompts import frosty_gen_sql, custom_gen_sql
 
 st.header("Validation page")
 
@@ -61,7 +61,7 @@ def generate_agent_executor(db, llm, memory, max_iterations, agent_type):
     return agent_executor
 
 
-gen_sql_prompt = en_prompt_template
+gen_sql_prompt = custom_gen_sql
 
 # grab the validation.json file and loop through it to call agent_executor.run
 # for each validation example

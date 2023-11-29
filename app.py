@@ -23,7 +23,7 @@ from langchain.prompts import PromptTemplate
 from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
-from prompts import en_prompt_template, cz_prompt_template
+from prompts import frosty_gen_sql, custom_gen_sql
 
 from few_shot_examples import custom_tool_list, custom_suffix
 
@@ -87,10 +87,10 @@ snfl_db = translate("snfl_db", language)
 
 agent_executor, conn_string = initialize_connection()   
 
-if language == 'Czech':
-    gen_sql_prompt = cz_prompt_template
-if language == 'English':
-    gen_sql_prompt = en_prompt_template
+#if language == 'Czech':
+#    gen_sql_prompt = cz_prompt_template
+#if language == 'English':
+#    gen_sql_prompt = en_prompt_template
 
 chat_container = st.container()
 
@@ -119,7 +119,7 @@ with chat_container:
 
         st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
         human_callback = HumanApprovalCallbackHandler()
-        prompt_formatted = gen_sql_prompt.format(context=prompt)
+        prompt_formatted = custom_gen_sql.format(context=prompt)
         try:
             response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
         except ValueError as e:
