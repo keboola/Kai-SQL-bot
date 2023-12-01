@@ -16,7 +16,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 from langchain.evaluation import load_evaluator
-from prompts import en_prompt_template
+from prompts import frosty_gen_sql, custom_gen_sql
 
 print("Validation page")
 
@@ -48,7 +48,7 @@ def initialize_connection():
 
 agent_executor, conn_string = initialize_connection()   
 
-gen_sql_prompt = en_prompt_template
+gen_sql_prompt = custom_gen_sql
 
 # grab the validation.json file and loop through it to call agent_executor.run
 # for each validation example

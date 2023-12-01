@@ -2,7 +2,6 @@
     {
         "question": "How many tables are there in the database?", 
         "answer": "There are 11 tables in the database."
-        
     },
     {
         "question": "How many orders are there?",
@@ -19,5 +18,17 @@
     {
         "question": "What is the breakdown of our customers by country?",
         "answer": "The breakdown of our customers by country is as follows: - 2914 customers have an empty country field - 1 customer is from Lebanon - 2 customers are from Bahamas - 1 customer is from Faroe Islands - 4 customers are from Australia - 1 customer is from Cambodia - 1 customer is from Jersey - 1 customer is from Bulgaria - 1 customer is from Grenada - 1 customer is from United Kingdom"
+    },
+    {   
+        "question": "How many returned orders are there",
+        "answer": "There are 296 returned orders in the database. Here is the SQL query to get the count of orders '''sql SELECT COUNT(*) AS num_orders FROM \"returns\"; ''' The result of the query is 296"
+    },
+    {   
+        "question": "What is the total profit from all of the orders?",
+        "answer": "The total profit is $286397.0217. Here is the SQL query to get the count of orders '''sql SELECT SUM(\"Profit\") AS num_orders FROM \"orders\" ''' The result of the query is 286397.0217"
+    },
+    {   
+        "question": "Which 5 customers have ordered the most?",
+        "answer": "The top 5 customers and their orders are as follows: William Brown with 37, Matt Ableman with 34, Paul Proust with 34, John Lee with 34, and Chloris Kastensmidt with 32"
     }
     ]
