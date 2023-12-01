@@ -50,7 +50,7 @@ msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
 
-model_selection = st.sidebar.selectbox("Choose a model", ['default', 'gpt-4', 'gpt-3.5-turbo-16k'], help="Select the model you want to use for the chatbot.")
+model_selection = st.sidebar.selectbox("Choose a model", ['gpt-3.5-turbo-16k', 'gpt-4'], help="Select the model you want to use for the chatbot.")
 if model_selection == 'default':
     llm = OpenAI(temperature=0, streaming=True)
 else:
@@ -72,10 +72,11 @@ def initialize_connection():
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=100,
+        max_iterations=50,
         extra_tools=custom_tool_list,
-        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        agent_type=AgentType.OPENAI_FUNCTIONS,
         memory=memory
+        #human_callback=HumanApprovalCallbackHandler(),
         #suffix=custom_suffix
     )
     return agent_executor, conn_string
@@ -216,7 +217,6 @@ with st.container():
     Contents of `st.session_state.langchain_messages`:
     """
     view_messages.json(st.session_state.chat_messages)
-
         # check if the url exists in the secrets
         #if "url" in st.secrets:
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)

@@ -60,7 +60,6 @@ with open('validation.json', 'r') as f:
 print('Data loaded')
 
 for i in range(len(data)):
-
     print(f"Question: {data[i]['question']}")
     prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
     try:
