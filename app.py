@@ -50,13 +50,10 @@ msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
 
-model_selection = st.sidebar.selectbox("Choose a model", ['gpt-3.5-turbo-16k', 'gpt-4'], help="Select the model you want to use for the chatbot.")
-if model_selection == 'default':
-    llm = OpenAI(temperature=0, streaming=True)
-else:
-    llm = ChatOpenAI(model=model_selection, temperature=0,streaming=True)
 
-def initialize_connection():
+llm = ChatOpenAI(model='gpt-4', temperature=0,streaming=True)
+
+def initialize_connection(llm=llm):
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
@@ -125,9 +122,16 @@ with chat_container:
             response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
         except ValueError as e:
             response = str(e)
-            if not response.startswith("Could not parse LLM output: `"):
-                raise e
-            response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+            # add another layer of error handling for response starts with( InvalidRequestError: This model's maximum context length is)
+            if response.startswith("Could not parse LLM output: `"):
+                response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+
+            elif response.startswith("InvalidRequestError: This model's maximum context length is"):
+                # change the llm model from gpt-4 to gpt-3.5-turbo-16k
+                llm = ChatOpenAI(model="gpt-3.5-turbo-16k", temperature=0,streaming=True)
+                #update the agent executor with the new llm model
+                agent_executor, conn_string = initialize_connection(llm=llm)
+                response = agent_executor.run(input=prompt_formatted, callbacks=[human_callback], memory=memory)
 
         msgs.add_ai_message(response)
         st.chat_message("Kai").write(response)
