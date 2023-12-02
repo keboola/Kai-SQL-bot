@@ -20,7 +20,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 
-from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
+from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler, OpenAICallbackHandler
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import frosty_gen_sql, custom_gen_sql
@@ -51,7 +51,7 @@ memory = ConversationBufferMemory(chat_memory=msgs)
 
 
 
-llm = ChatOpenAI(model='gpt-4', temperature=0,streaming=True)
+llm = ChatOpenAI(model='gpt-4', temperature=0,streaming=True, max_tokens=7000)
 
 def initialize_connection(llm=llm):
     account_identifier = st.secrets["account_identifier"]
@@ -116,22 +116,29 @@ with chat_container:
         st.chat_message("user").write(prompt)
 
         st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+        openai_callback = OpenAICallbackHandler()
         human_callback = HumanApprovalCallbackHandler()
         prompt_formatted = custom_gen_sql.format(context=prompt)
         try:
             response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
         except ValueError as e:
             response = str(e)
-            # add another layer of error handling for response starts with( InvalidRequestError: This model's maximum context length is)
-            if response.startswith("Could not parse LLM output: `"):
-                response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
-
-            elif response.startswith("InvalidRequestError: This model's maximum context length is"):
-                # change the llm model from gpt-4 to gpt-3.5-turbo-16k
+            if not response.startswith("Could not parse LLM output: `"):
+                raise e
+            response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+    
+        except Exception as e:
+            response = str(e)
+            if not response.startswith("InvalidRequestError: This model's maximum context length is "):
+                raise e
+            try: 
+                st.chat_message("Kai").write("I seem to have exceeded the maximum context length. I will try try again with a different model.")
                 llm = ChatOpenAI(model="gpt-3.5-turbo-16k", temperature=0,streaming=True)
-                #update the agent executor with the new llm model
-                agent_executor, conn_string = initialize_connection(llm=llm)
-                response = agent_executor.run(input=prompt_formatted, callbacks=[human_callback], memory=memory)
+                agent_executor, conn_string = initialize_connection(llm=llm)   
+                response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+
+            except Exception as e:
+                raise e
 
         msgs.add_ai_message(response)
         st.chat_message("Kai").write(response)

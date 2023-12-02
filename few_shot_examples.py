@@ -2,7 +2,6 @@ from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.schema import Document
 from langchain.agents.agent_toolkits import create_retriever_tool
-from langchain.agents.tools import human_approval_tool
 
 
 few_shots = {'List all customers.': 'SELECT * FROM "customer";',
