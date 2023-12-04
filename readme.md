@@ -84,7 +84,6 @@ Get started with your own customizations by forking this repository:
     
 - Users can select their preferred language from the sidebar (currently supports English and Czech).
     
-- Users can also choose the Open AI model to be used.
     
 
 **What Questions to Ask**:

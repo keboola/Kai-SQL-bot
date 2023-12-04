@@ -1,34 +1,41 @@
-# Importing libraries
 import openai
 import re
 import streamlit as st
 import os
 import sqlalchemy
 import json
+import requests
 import pandas as pd
+
 from langchain.memory import StreamlitChatMessageHistory
 from langchain.memory import ConversationBufferMemory
 from langchain.memory.chat_message_histories import StreamlitChatMessageHistory
+
 from langchain.agents import create_sql_agent
 from langchain.agents.agent_toolkits import SQLDatabaseToolkit
 from langchain.sql_database import SQLDatabase
 from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
-from langchain.callbacks import StreamlitCallbackHandler
-from prompts import en_prompt_template, cz_prompt_template
 
-# Setting up the page config
-image_path = os.path.dirname(os.path.abspath(__file__)) # Make sure to replace the image with you own
-st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:") # Replace with your Title
+from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler, OpenAICallbackHandler
+
+#from src.workspace_connection.workspace_connection import connect_to_snowflake
+from prompts import  custom_gen_sql
+
+from few_shot_examples import custom_tool_list
+
+image_path = os.path.dirname(os.path.abspath(__file__))
+st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 st.image(image_path+'/static/keboola_logo.png', width=200)
 home_title = "Kai SQL Bot"  # Replace with your title
-st.markdown(f"""# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta</span>""", unsafe_allow_html=True)
 
+# Display the title with the "Beta" label using HTML styling
+st.markdown(f"""# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta</span>""", unsafe_allow_html=True)
 # Initialize the chat messages history
 openai.api_key = st.secrets.OPENAI_API_KEY
 
 
-# Function to switch the app language based on user selection
+# function to change the app language based on selection
 def translate(key, lang="English"):
     # Define the path to the JSON file inside the 'languages' folder
     file_path = os.path.join(image_path+"/languages", f"{lang.lower()}.json")
@@ -37,16 +44,14 @@ def translate(key, lang="English"):
         translations = json.load(file)
         return translations.get(key, key)  # Return key if translation not found.
 
-# Initialising & saving the chat history
+
 msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
-# Here you can add other model options in the select box
-model_selection = st.sidebar.selectbox("Choose a model", [ 'gpt-4', 'gpt-3.5-turbo-16k'], help="Select the model you want to use for the chatbot.")
-llm = ChatOpenAI(model=model_selection, temperature=0, streaming=True)
+# initializing with model,can be replaced
+llm = ChatOpenAI(model="gpt-3.5-turbo-16k", temperature=0,streaming=True)
 
-# The connection to keboola workspace
-def initialize_connection():
+def initialize_connection(llm=llm):
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
@@ -62,61 +67,62 @@ def initialize_connection():
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
-        max_iterations=20,
-        agent_type=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+        max_iterations=50,
+        extra_tools=custom_tool_list,
+        agent_type=AgentType.OPENAI_FUNCTIONS,
         memory=memory
     )
     return agent_executor, conn_string
 
-# Dropdown for language selection. Currently supports only English & Czech
+
 language = st.sidebar.selectbox("Language/Jazyk", ["English", "Czech"], help="Select the language you want to use for the chatbot. Currently, only English and Czech are supported.")
 
 snfl_db = translate("snfl_db", language)   
 
-# Intiializing connection variables
 agent_executor, conn_string = initialize_connection()   
 
-if language == "Czech":
-    gen_sql_prompt = cz_prompt_template
-if language == "English":
-    gen_sql_prompt = en_prompt_template
+# you can add a CZ prompt as you see fit based on the EN prompt and rename them
+#if language == 'Czech':
+#    gen_sql_prompt = cz_prompt_template
+#if language == 'English':
+#    gen_sql_prompt = en_prompt_template
 
-chat_container = st.container()
+# Create a dictionary to store feedback counts
+feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 
-with chat_container:
-    # Create a dictionary to store feedback counts
-    feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
-
-    # Function to handle user feedback
-    def handle_feedback(feedback_type):
-        feedback_counts[feedback_type] += 1
+# Function to handle user feedback
+def handle_feedback(feedback_type):
+    feedback_counts[feedback_type] += 1
 
 
-    ai_intro = translate("ai_intro", language)   
+ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
 
-    
-    if len(msgs.messages) == 0:
-        msgs.add_ai_message(ai_intro)
+if len(msgs.messages) == 0:
+    msgs.add_ai_message(ai_intro)
 
-    for msg in msgs.messages:
-        st.chat_message(msg.type).write(msg.content)
+view_messages = st.sidebar.expander("View the message contents in session state")
 
-    if prompt := st.chat_input():
-        msgs.add_user_message(prompt)
-        st.chat_message("user").write(prompt)
+for msg in msgs.messages:
+    st.chat_message(msg.type).write(msg.content)
 
-        st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
-        prompt_formatted = gen_sql_prompt.format(context=prompt)
-        try:
-            response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
-        except ValueError as e:
-            response = str(e)
-            if not response.startswith("Could not parse LLM output: `"):
-                raise e
-            response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+if prompt := st.chat_input():
+    msgs.add_user_message(prompt)
+    st.chat_message("user").write(prompt)
 
-        msgs.add_ai_message(response)
-        st.chat_message("Kai").write(response)
+    st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+    openai_callback = OpenAICallbackHandler()
+    human_callback = HumanApprovalCallbackHandler()
+    prompt_formatted = custom_gen_sql.format(context=prompt)
+    try:
+        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+    except ValueError as e:
+        response = str(e)
+        if not response.startswith("Could not parse LLM output: `"):
+            raise e
+        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+
+    msgs.add_ai_message(response)
+    st.chat_message("Kai").write(response)
 
 
 with st.container():
@@ -124,7 +130,7 @@ with st.container():
     if len(msgs.messages) > 1:
         last_output_message = msgs.messages[-1].content    
     
-        # Function to execute SQL queries button in case of a query in the response   
+        # function to extact the sql from the response and execute it   
         def execute_sql():
             sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
             for sql in sql_matches:
@@ -136,26 +142,15 @@ with st.container():
                     st.sidebar.write("Results")
                     st.sidebar.dataframe(df)
                 except Exception as e:
-                    st.write(e)
-                    st.write(translate("invalid_query", language))
+                    #st.write(e) #in case you want to write the error
+                    st.sidebar.write(translate("invalid_query", language))
         if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
-            st.button(translate("execute_sql", language), on_click=execute_sql)  
-        # if st.button(translate("regenerate_response", language)):
-        #     last_user_message = msgs.messages[-2].content
-        #     st_callback = StreamlitCallbackHandler(st.container())
-        #     regenerate_prompt_formatted = gen_sql_prompt.format(context=last_user_message)
-        #     response = agent_executor.run(input=regenerate_prompt_formatted, callbacks=[st_callback], memory=memory)
-        #     sql_match = re.search(r"```sql\n(.*)\n```", response, re.DOTALL)
-        #     msgs.add_ai_message(response)
-        #     st.chat_message("Kai").write(response)
+            st.button(translate("execute_sql", language), on_click=execute_sql)     
 
-        # Function to clear the chat
         def clear_chat():
             msgs.clear()
             
         st.sidebar.button(translate("clear_chat", language), on_click=clear_chat)
-
-        # Feedback button
         # Create two columns with custom widths
         col_1, col_2 = st.columns([1, 5])
         # Apply custom CSS to reduce margin between columns
@@ -184,4 +179,19 @@ with st.container():
         else:
             # If both counts are equal or both are 0, set a default feedback
             feedback = "neutral"
+        #log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
+        headers = {'Content-Type': 'application/json'}
+        with view_messages: """
+    Memory initialized with:
+    ```python
+    msgs = StreamlitChatMessageHistory(key="langchain_messages")
+    memory = ConversationBufferMemory(chat_memory=msgs)
+    ```
 
+    Contents of `st.session_state.langchain_messages`:
+    """
+    view_messages.json(st.session_state.chat_messages)
+        # write the conversation back to keboola with feedback
+        # check if the url exists in the secrets
+        #if "url" in st.secrets:
+            #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
