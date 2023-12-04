@@ -21,7 +21,7 @@ from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 
 from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
-st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
+#st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import frosty_gen_sql, custom_gen_sql
