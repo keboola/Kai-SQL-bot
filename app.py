@@ -72,7 +72,7 @@ def initialize_connection():
         verbose=True,
         handle_parsing_errors=True,
         max_iterations=50,
-        extra_tools=custom_tool_list,
+        #extra_tools=custom_tool_list,
         agent_type=AgentType.OPENAI_FUNCTIONS,
         memory=memory
         #human_callback=HumanApprovalCallbackHandler(),
