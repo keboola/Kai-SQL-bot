@@ -25,7 +25,6 @@ from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackH
 from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import frosty_gen_sql, custom_gen_sql
 
-from few_shot_examples import custom_tool_list, custom_suffix
 
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
