@@ -56,7 +56,8 @@ def initialize_connection():
         handle_parsing_errors=True,
         max_iterations=50,
         agent_type=AgentType.OPENAI_FUNCTIONS,
-        memory=memory
+        memory=memory,
+        return_intermediate_steps=True,
     )
     return agent_executor, conn_string
 
@@ -81,22 +82,69 @@ if prompt := st.chat_input():
         response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
     msgs.add_ai_message(response)
     st.chat_message("Kai").write(response)
+    sql_matches = re.findall(r"```sql\n(.*?)\n```", response, re.DOTALL)
+    if not sql_matches:
+        regenerate_sql_prompt = ("You forgot to add the SQL query to your previous response. from this question:" + "\n" + prompt + "\n"
+                                 + "Please add the SQL query to your response and try again.")
+        response = agent_executor.run(input=regenerate_sql_prompt, callbacks=[st_callback], memory=memory)
+        forgotten_sql = re.findall(r"```sql\n(.*?)\n```", response, re.DOTALL)
 
+        st.chat_message("Kai").write("whoops, here is the SQL that I forgot: " + "\n" + "```sql" +"\n" + forgotten_sql[0] + "\n" + "```" + "\n")
 # SQL Execution and Feedback Section
 with st.container():
     if len(msgs.messages) > 1:
         last_output_message = msgs.messages[-1].content
         sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
         if sql_matches:
-            if st.button("Execute SQL"):
-                engine = sqlalchemy.create_engine(conn_string)
-                for sql in sql_matches:
-                    try:
-                        df = pd.DataFrame(engine.execute(sql).fetchall())
-                        st.sidebar.write("Results")
-                        st.sidebar.dataframe(df)
-                    except Exception as e:
-                        st.write(e)
+            if sql_matches:
+                if st.button("Execute SQL"):
+                    engine = sqlalchemy.create_engine(conn_string)
+                    for sql in sql_matches:
+                        try:
+                            df = pd.DataFrame(engine.execute(sql).fetchall())
+                            st.sidebar.write("Results")
+                            st.sidebar.dataframe(df)
+                            break  # Break the loop if query executed successfully
+                        except sqlalchemy.exc.ProgrammingError as e:
+                            st.write(f"Error executing SQL query. Generating a new query...")
+                            st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+                            prompt = ("The following SQL query generated an error: ```sql\n" + sql + "\n```"
+                                      + "Here is the error: ```" + str(e) + "``` " + "Rewrite the query to be valid and test it by executing it against the database.")
+                            response = agent_executor.run(input=prompt, callbacks=[st_callback], memory=memory)
+                            
+                            # get the response as a string 
+                            #response = response['text']
+    
+                            #msgs.add_ai_message(response)
+                            #st.chat_message("Kai").write(response)
+                            last_output_message = msgs.messages[-1].content
+                            new_sql_matches = re.findall(r"```sql\n(.*?)\n```", response, re.DOTALL)
+                            if new_sql_matches:
+                                sql = new_sql_matches[0]  # Update the SQL query
+                            else:
+                                break  # Break the loop if no new SQL query is found
+                            
+                            try:
+                                df = pd.DataFrame(engine.execute(sql).fetchall())
+                            
+                            except sqlalchemy.exc.ProgrammingError as e:
+                                st.write(f"Error executing SQL query. Generating a new query...")
+                                st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+                                prompt = ("The following SQL query generated an error: ```sql\n" + sql + "\n```"
+                                       + "Here is the error: ```" + str(e) + "``` " + "Rewrite the query to be valid. You should also run the query to get the results. Don't forget to return the new SQL query in your response.")
+                                response = agent_executor.run(input=prompt, callbacks=[st_callback], memory=memory)
+                                last_output_message = msgs.messages[-1].content
+                                new_sql_matches = re.findall(r"```sql\n(.*?)\n```", response, re.DOTALL)
+                                if new_sql_matches:
+                                    sql = new_sql_matches[0]
+
+                                    df = pd.DataFrame(engine.execute(sql).fetchall())
+                                    st.sidebar.write("Results")
+                                    st.sidebar.dataframe(df)
+
+                                else:
+                                    break
+                    
 
         def clear_chat():
             msgs.clear()

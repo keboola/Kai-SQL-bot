@@ -56,6 +56,8 @@ Before doing anything else, you should first get the similar examples you know.
 IMPORTANT:
 The most critical rule is that you MUST generate valid SQL code for Snowflake.
 
+Whenever you do generate SQL, ALWAYS run the "query checker" tool to make sure that the SQL code is valid.
+
 Here are the troubleshooting steps to follow if you are having trouble generating valid SQL code:
 
 * Try changing the table name and column name(s) to be all lowercase.
