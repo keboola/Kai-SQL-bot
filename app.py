@@ -17,9 +17,11 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.callbacks import StreamlitCallbackHandler
 
+
 #from src.workspace_connection.workspace_connection import connect_to_snowflake
 from prompts import  custom_gen_sql
 from few_shot_examples import custom_tool_list
+
 
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
@@ -40,6 +42,7 @@ model_selection = st.sidebar.selectbox("Choose a model", ['gpt-3.5-turbo-16k', '
 llm = ChatOpenAI(model=model_selection, temperature=0, streaming=True) if model_selection != 'default' else OpenAI(temperature=0, streaming=True)
 
 
+
 def initialize_connection():
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
@@ -53,6 +56,7 @@ def initialize_connection():
     toolkit = SQLDatabaseToolkit(llm=llm, db=db)
     agent_executor = create_sql_agent(
         llm=llm,
+        llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0),
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
@@ -63,6 +67,7 @@ def initialize_connection():
         return_intermediate_steps=True
     )
     return agent_executor, conn_string
+
 
 
 agent_executor, conn_string = initialize_connection()   
@@ -95,6 +100,7 @@ if prompt := st.chat_input():
             raise e
         response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
+
     msgs.add_ai_message(response)
     st.chat_message("Kai").write(response)
 
@@ -125,6 +131,7 @@ with st.container():
             msgs.clear()
             
         st.sidebar.button("Clear Chat", on_click=clear_chat)
+
         # Create two columns with custom widths
         col_1, col_2 = st.columns([1, 5])
         # Apply custom CSS to reduce margin between columns
@@ -153,9 +160,11 @@ with st.container():
         else:
             # If both counts are equal or both are 0, set a default feedback
             feedback = "neutral"
+
         #log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
         headers = {'Content-Type': 'application/json'}
         # write the conversation back to keboola with feedback
         # check if the url exists in the secrets
         #if "url" in st.secrets:
             #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+
