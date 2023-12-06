@@ -1,8 +1,9 @@
 streamlit
-langchain==0.0.262
+
+langchain==0.0.320
+SQLAlchemy
 openai==0.28.1
-SQLAlchemy==1.4.17
-snowflake-sqlalchemy==1.2.4
-streamlit-chat
-kbcstorage
-git+https://github.com/wbond/oscrypto.git@d5f3437ed24257895ae1edd9e503cfb352e635a8
+snowflake-sqlalchemy==1.4.7
+rapidfuzz
+faiss-cpu
+tiktoken

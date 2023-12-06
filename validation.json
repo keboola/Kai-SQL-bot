@@ -1,0 +1,43 @@
+[
+    {
+        "question": "How many tables are there in the database?", 
+        "answer": "There are 11 tables in the database."
+        
+    },
+    {
+        "question": "How many orders are there?",
+        "answer": "There are 2746 orders in the database.  Here is the SQL query to get the count of orders: ```sql SELECT COUNT(*) FROM \"order\"; ```  The result of the query is 2746."
+    },
+    {
+        "question": "Help me write a query to find the number of orders placed by each customer.",
+        "answer": "To find the number of orders placed by each customer, you can use the following SQL query:  ```sql SELECT customer_id, COUNT(*) AS order_count FROM \"order\" GROUP BY customer_id ```  This query selects the customer_id column and counts the number of rows for each customer_id in the \"order\" table. The result is grouped by customer_id.  Here are the results of the query:  | customer_id       | order_count | |-------------------|-------------| | 6596911956219     | 1           | | 6932238172411     | 1           | | 6875585741051     | 1           |  Please note that these results are based on the sample data provided."
+    },
+    {
+        "question": "What is my best selling product over the past 30 day?",
+        "answer": "The best selling product over the past 30 days is \"CONVERSE | CHUCK TAYLOR ALL STAR II HI\" with a total quantity sold of 4.  Please let me know if there's anything else I can help with."
+    },
+    {
+        "question": "What is the breakdown of our customers by country?",
+        "answer": "The breakdown of our customers by country is as follows: - 2914 customers have an empty country field - 1 customer is from Lebanon - 2 customers are from Bahamas - 1 customer is from Faroe Islands - 4 customers are from Australia - 1 customer is from Cambodia - 1 customer is from Jersey - 1 customer is from Bulgaria - 1 customer is from Grenada - 1 customer is from United Kingdom"
+    },
+    { 
+    "question": "What are the top 5 countries we have customers from?", 
+    "answer": "2,914 customers have an empty country field, United States – 5 customers Congo, The Democratic Republic Of The – 4 customers, Australia – 4 customers, France – 4 customers."
+    }, 
+    { 
+    "question": "How many vendors are there?", 
+    "answer": "53 vendors were found. Here is the SQL query to get the count of vendors: ```sql SELECT COUNT(DISTINCT \"vendor\") FROM \"product\";"
+    }, 
+    {
+    "question": "How many products do we have in each product_type group?",
+    "answer": "These are the product types and count of products – TOYS: 497, SHOES: 23, ACCESSORIEs: 6, T-SHIRTS: 1, 3: 1, empty: 1" 
+    }, 
+    {
+    "question": "What is the best selling product and how many times has it been ordered?",
+    "answer": "The best selling product is DR MARTENS | 1460Z DMC 8-EYE BOOT | CHERRY SMOOTH and has been ordered 56 times."
+    }, 
+    {
+    "question": "How many products within the product_type SHOES were sold?", 
+    "answer": "584 products." 
+    }
+    ]
