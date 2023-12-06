@@ -56,7 +56,6 @@ def initialize_connection():
     toolkit = SQLDatabaseToolkit(llm=llm, db=db)
     agent_executor = create_sql_agent(
         llm=llm,
-        llm=ChatOpenAI(model='gpt-3.5-turbo-16k', temperature=0),
         toolkit=toolkit,
         verbose=True,
         handle_parsing_errors=True,
