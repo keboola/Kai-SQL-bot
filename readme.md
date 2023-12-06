@@ -134,10 +134,15 @@ For deploying this app, ensure:
 #### Future Enhancements:
 
 1. Extend language support.
-    
-2. Introduce features like saving queries and exporting results.
-    
-3. Enhance the chat UI for a superior user experience.
+
+2. Closer Integration with the platform.
+
+3. Option to work with RO Workspaces.
+
+4. Enrich Metadata.
+
+5. Introduce features like saving queries and exporting results
+
     
 
 ---
