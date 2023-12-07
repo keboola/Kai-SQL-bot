@@ -93,130 +93,128 @@ agent_executor, conn_string = initialize_connection()
 #if language == 'English':
 #    gen_sql_prompt = en_prompt_template
 
-chat_container = st.container()
 
-with chat_container:
-    # Create a dictionary to store feedback counts
-    feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
+# Create a dictionary to store feedback counts
+feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 
-    # Function to handle user feedback
-    def handle_feedback(feedback_type):
-        feedback_counts[feedback_type] += 1
+# Function to handle user feedback
+def handle_feedback(feedback_type):
+    feedback_counts[feedback_type] += 1
 
 
-    ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
+ai_intro = "Hello, I'm Kai, your AI SQL Bot. I'm here to assist you with SQL queries. What can I do for you?"
 
-    if len(msgs.messages) == 0:
-        msgs.add_ai_message(ai_intro)
+if len(msgs.messages) == 0:
+    msgs.add_ai_message(ai_intro)
 
-    view_messages = st.sidebar.expander("View the message contents in session state")
+view_messages = st.sidebar.expander("View the message contents in session state")
 
-    for msg in msgs.messages:
-        st.chat_message(msg.type).write(msg.content)
+for msg in msgs.messages:
+    st.chat_message(msg.type).write(msg.content)
 
-    if prompt := st.chat_input():
-        msgs.add_user_message(prompt)
-        st.chat_message("user").write(prompt)
+if prompt := st.chat_input():
+    msgs.add_user_message(prompt)
+    st.chat_message("user").write(prompt)
 
-        st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
-        human_callback = HumanApprovalCallbackHandler()
-        prompt_formatted = custom_gen_sql.format(context=prompt)
-        try:
-            response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
-        except ValueError as e:
-            response = str(e)
-            if not response.startswith("Could not parse LLM output: `"):
-                raise e
-            response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+    st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
+    human_callback = HumanApprovalCallbackHandler()
+    prompt_formatted = custom_gen_sql.format(context=prompt)
+    try:
+        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+    except ValueError as e:
+        response = str(e)
+        if not response.startswith("Could not parse LLM output: `"):
+            raise e
+        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
-        msgs.add_ai_message(response)
-        st.chat_message("Kai").write(response)
+    msgs.add_ai_message(response)
+    st.chat_message("Kai").write(response)
 
 
-with st.container():
-    # get the output of the last message from the agent 
-    if len(msgs.messages) > 1:
-        last_output_message = msgs.messages[-1].content    
-    
-           
-        def execute_sql():
-            sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
-            for sql in sql_matches:
-                try:
-                    #connect to snowflake using sqlalchemy engine and execute the sql query
-                    engine = sqlalchemy.create_engine(conn_string)
-                    df = engine.execute(sql).fetchall()
-                    df = pd.DataFrame(df)
-                    # Append messages
-                    #msgs.add_ai_message(df)
-                    # Display messages
-                    #with st.container():
-                        #with st.chat_message("result"):
-                            #st.dataframe(df)
-                    st.sidebar.write("Results")
-                    st.sidebar.dataframe(df)
-                    # Spawn a new Ace editor
-                    #with st.sidebar.container():
-                    #    content = st_ace()
+
+# get the output of the last message from the agent 
+if len(msgs.messages) > 1:
+    last_output_message = msgs.messages[-1].content    
+
+       
+    def execute_sql():
+        sql_matches = re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL)
+        for sql in sql_matches:
+            try:
+                #connect to snowflake using sqlalchemy engine and execute the sql query
+                engine = sqlalchemy.create_engine(conn_string)
+                df = engine.execute(sql).fetchall()
+                df = pd.DataFrame(df)
+                # Append messages
+                #msgs.add_ai_message(df)
+                # Display messages
+                #with st.container():
+                    #with st.chat_message("result"):
+                        #st.dataframe(df)
+                st.sidebar.write("Results")
+                st.sidebar.dataframe(df)
+                # Spawn a new Ace editor
+                #with st.sidebar.container():
+                #    content = st_ace()
 # 
-                    ## Display editor's content as you type
-                    #    content
-                except Exception as e:
-                    st.write(e)
-                    st.write(translate("invalid_query", language))
-        if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
-            st.button(translate("execute_sql", language), on_click=execute_sql)     
-        #if st.button(translate("regenerate_response", language)):
-        #    with chat_container:
-        #        st_callback = StreamlitCallbackHandler(chat_container)
-        #        prompt_formatted = gen_sql_prompt.format(context=prompt)
-        #        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
-        #        sql_match = re.search(r"```sql\n(.*)\n```", response, re.DOTALL)
-        #        st.chat_message("Kai").write(response)
-        def clear_chat():
-            msgs.clear()
-            
-        st.sidebar.button(translate("clear_chat", language), on_click=clear_chat)
-        # Create two columns with custom widths
-        col_1, col_2 = st.columns([1, 5])
-        # Apply custom CSS to reduce margin between columns
-        st.markdown(
-            """
-            <style>
-            .st-b3 {
-                margin-left: -10px; /* Adjust the negative margin as needed */
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-        # Display thumbs-up button in the first column
-        with col_1:
-            if st.button("👍"):
-                handle_feedback("thumbs_up")
-        # Display thumbs-down button in the second column
-        with col_2:
-            if st.button("👎"):
-                handle_feedback("thumbs_down")
-        if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
-            feedback = "positive"
-        elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
-            feedback = "negative"
-        else:
-            # If both counts are equal or both are 0, set a default feedback
-            feedback = "neutral"
-        #log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
-        headers = {'Content-Type': 'application/json'}
-        with view_messages: """
-    Memory initialized with:
-    ```python
-    msgs = StreamlitChatMessageHistory(key="langchain_messages")
-    memory = ConversationBufferMemory(chat_memory=msgs)
-    ```
+                ## Display editor's content as you type
+                #    content
+            except Exception as e:
+                st.write(e)
+                st.write(translate("invalid_query", language))
+    if re.findall(r"```sql\n(.*?)\n```", last_output_message, re.DOTALL):
+        st.button(translate("execute_sql", language), on_click=execute_sql)     
+    #if st.button(translate("regenerate_response", language)):
+    #    with chat_container:
+    #        st_callback = StreamlitCallbackHandler(chat_container)
+    #        prompt_formatted = gen_sql_prompt.format(context=prompt)
+    #        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback])
+    #        sql_match = re.search(r"```sql\n(.*)\n```", response, re.DOTALL)
+    #        st.chat_message("Kai").write(response)
+    def clear_chat():
+        msgs.clear()
+        
+    st.sidebar.button(translate("clear_chat", language), on_click=clear_chat)
+    # Create two columns with custom widths
+    col_1, col_2 = st.columns([1, 5])
+    # Apply custom CSS to reduce margin between columns
+    st.markdown(
+        """
+        <style>
+        .st-b3 {
+            margin-left: -10px; /* Adjust the negative margin as needed */
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    # Display thumbs-up button in the first column
+    with col_1:
+        if st.button("👍"):
+            handle_feedback("thumbs_up")
+    # Display thumbs-down button in the second column
+    with col_2:
+        if st.button("👎"):
+            handle_feedback("thumbs_down")
+    if feedback_counts["thumbs_up"] > feedback_counts["thumbs_down"]:
+        feedback = "positive"
+    elif feedback_counts["thumbs_up"] < feedback_counts["thumbs_down"]:
+        feedback = "negative"
+    else:
+        # If both counts are equal or both are 0, set a default feedback
+        feedback = "neutral"
+    #log_data = "User: " + last_user_message["content"] + "\n" + "Kai: " + last_output_message["content"] + "\n" + "feedback: " + feedback + "\n"
+    headers = {'Content-Type': 'application/json'}
+    with view_messages: """
+Memory initialized with:
+```python
+msgs = StreamlitChatMessageHistory(key="langchain_messages")
+memory = ConversationBufferMemory(chat_memory=msgs)
+```
 
-    Contents of `st.session_state.langchain_messages`:
-    """
-    view_messages.json(st.session_state.chat_messages)
-        # check if the url exists in the secrets
-        #if "url" in st.secrets:
-            #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
+Contents of `st.session_state.langchain_messages`:
+"""
+view_messages.json(st.session_state.chat_messages)
+    # check if the url exists in the secrets
+    #if "url" in st.secrets:
+        #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
