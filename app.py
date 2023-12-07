@@ -24,6 +24,7 @@ from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackH
 #st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
+from few_shot_examples import custom_tool_list
 from prompts import frosty_gen_sql, custom_gen_sql
 
 
@@ -49,7 +50,7 @@ msgs = StreamlitChatMessageHistory(key="chat_messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
 
-model_selection = st.sidebar.selectbox("Choose a model", ['gpt-3.5-turbo-16k', 'gpt-4'], help="Select the model you want to use for the chatbot.")
+model_selection = st.sidebar.selectbox("Choose a model", ['gpt-4-1106-preview', 'gpt-3.5-turbo-16k', 'gpt-4'], help="Select the model you want to use for the chatbot.")
 if model_selection == 'default':
     llm = OpenAI(temperature=0, streaming=True)
 else:
@@ -72,7 +73,7 @@ def initialize_connection():
         verbose=True,
         handle_parsing_errors=True,
         max_iterations=50,
-        #extra_tools=custom_tool_list,
+        extra_tools=custom_tool_list,
         agent_type=AgentType.OPENAI_FUNCTIONS,
         memory=memory
         #human_callback=HumanApprovalCallbackHandler(),
