@@ -16,7 +16,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 from langchain.evaluation import load_evaluator
-from prompts import en_prompt_template
+from prompts import en_prompt_template, custom_gen_sql, frosty_gen_sql, prompt_template_var1, prompt_template_var2, prompt_template_var3, chocho_gen_sql_1
 
 print("Validation page")
 
@@ -48,8 +48,10 @@ def initialize_connection():
 
 agent_executor, conn_string = initialize_connection()   
 
-gen_sql_prompt = en_prompt_template
-
+# gen_sql_prompt = en_prompt_template
+prompts = [en_prompt_template, custom_gen_sql, frosty_gen_sql, 
+           prompt_template_var1, prompt_template_var2, 
+           prompt_template_var3, chocho_gen_sql_1]
 # grab the validation.json file and loop through it to call agent_executor.run
 # for each validation example
 
@@ -58,24 +60,24 @@ with open('validation.json', 'r') as f:
     data = json.load(f)
 
 print('Data loaded')
+for gen_sql_prompt in prompts:
+    for i in range(len(data)):
+        print(f"Question: {data[i]['question']}")
+        prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
+        try:
+            response = agent_executor.run(input=prompt_formatted, memory=memory)
+        except ValueError as e:
+            response = str(e)
+            if not response.startswith("Could not parse LLM output: `"):
+                raise e
+            response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
-for i in range(len(data)):
-    print(f"Question: {data[i]['question']}")
-    prompt_formatted = gen_sql_prompt.format(context=data[i]['question'])
-    try:
-        response = agent_executor.run(input=prompt_formatted, memory=memory)
-    except ValueError as e:
-        response = str(e)
-        if not response.startswith("Could not parse LLM output: `"):
-            raise e
-        response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
+        evaluation = evaluator.evaluate_strings(
+        prediction=response,
+        reference=data[i]['answer'],
+        )
 
-    evaluation = evaluator.evaluate_strings(
-    prediction=response,
-    reference=data[i]['answer'],
-    )
-
-    print(f"Answer: {data[i]['answer']}")
-    print(f"Prediction: {response}")
-    print(evaluation)
+        print(f"Answer: {data[i]['answer']}")
+        print(f"Prediction: {response}")
+        print(evaluation)
 
