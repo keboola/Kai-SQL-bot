@@ -1,6 +1,10 @@
 import streamlit as st
 from langchain.prompts import PromptTemplate
 
+ai_intro = """Hello, I'm Kai, your AI SQL Bot. 
+            I'm here to assist you with SQL queries. What can I do for you?"""
+
+
 frosty_gen_sql = PromptTemplate.from_template(
    """
 You will be acting as an AI Snowflake SQL Expert named Frosty.
