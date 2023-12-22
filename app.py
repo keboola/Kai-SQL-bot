@@ -20,7 +20,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.agents.agent_types import AgentType
 from langchain.prompts import PromptTemplate
 
-from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler
+from langchain.callbacks import StreamlitCallbackHandler, HumanApprovalCallbackHandler, LLMonitorCallbackHandler
 #st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 
 from src.workspace_connection.workspace_connection import connect_to_snowflake
@@ -66,7 +66,7 @@ def initialize_connection():
     role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
     db = SQLDatabase.from_uri(conn_string)
-    toolkit = SQLDatabaseToolkit(llm=llm, db=db)
+    toolkit = SQLDatabaseToolkit(llm=llm, db=db, view_intermediate_results=True, view_messages=True)
     agent_executor = create_sql_agent(
         llm=llm,
         toolkit=toolkit,
@@ -109,6 +109,8 @@ if len(msgs.messages) == 0:
 
 view_messages = st.sidebar.expander("View the message contents in session state")
 
+view_intermediate_results = st.sidebar.expander("View intermediate results")
+
 for msg in msgs.messages:
     st.chat_message(msg.type).write(msg.content)
 
@@ -117,17 +119,18 @@ if prompt := st.chat_input():
     st.chat_message("user").write(prompt)
 
     st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
-    human_callback = HumanApprovalCallbackHandler()
+    lunary_callback = LLMonitorCallbackHandler(app_id=st.secrets.LUNARY_APP_ID)
+
     prompt_formatted = custom_gen_sql.format(context=prompt)
     try:
-        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=memory)
+        response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback, lunary_callback], memory=memory, return_intermediate_steps=True )
     except ValueError as e:
         response = str(e)
         if not response.startswith("Could not parse LLM output: `"):
             raise e
         response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
 
-    msgs.add_ai_message(response)
+    msgs.add_ai_message(response, )
     st.chat_message("Kai").write(response)
 
 
@@ -215,6 +218,11 @@ memory = ConversationBufferMemory(chat_memory=msgs)
 Contents of `st.session_state.langchain_messages`:
 """
 view_messages.json(st.session_state.chat_messages)
+
+#with view_intermediate_results: """
+#Contents of `response.ntermediate_results`:
+#"""
+#view_intermediate_results.json(response["intermediate_steps"])
     # check if the url exists in the secrets
     #if "url" in st.secrets:
         #r = requests.post(st.secrets["url"], data=log_data.encode('utf-8'), headers=headers)
