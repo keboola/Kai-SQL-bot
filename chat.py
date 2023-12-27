@@ -1,12 +1,13 @@
 import streamlit as st
 from prompts import ai_intro, custom_gen_sql
 from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemory
-from langchain.callbacks import StreamlitCallbackHandler, LLMonitorCallbackHandler
+from langchain.callbacks import StreamlitCallbackHandler, LLMonitorCallbackHandler, FileCallbackHandler
 
 
-def display_chat(msgs, agent_executor):
+def display_chat(msgs, memory, agent_executor):
     st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
     lunary_callback = LLMonitorCallbackHandler(app_id=st.secrets.LUNARY_APP_ID)
+    logfile_handler = FileCallbackHandler("chat_log.txt")
     if len(msgs.messages) == 0:
         msgs.add_ai_message(ai_intro)
     
@@ -19,7 +20,7 @@ def display_chat(msgs, agent_executor):
     
         prompt_formatted = custom_gen_sql.format(context=prompt)
         try:
-            response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback, lunary_callback], memory=memory, return_intermediate_steps=True )
+            response = agent_executor.run(input=prompt_formatted, callbacks=[st_callback, lunary_callback, logfile_handler], memory=memory, return_intermediate_steps=True )
         except ValueError as e:
             response = str(e)
             if not response.startswith("Could not parse LLM output: `"):

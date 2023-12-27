@@ -38,7 +38,7 @@ feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 def handle_feedback(feedback_type):
     feedback_counts[feedback_type] += 1
 
-display_chat(msgs,agent_executor)
+display_chat(msgs, memory, agent_executor)
 
 view_messages = st.sidebar.expander("View the message contents in session state")
 
