@@ -24,4 +24,6 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run validation
+      env: # Or as an environment variable
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: python validation.py
