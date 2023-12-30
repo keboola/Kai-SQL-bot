@@ -19,7 +19,7 @@ from prompts import custom_gen_sql
 #get current datetime as a unix timestamp
 current_time = datetime.datetime.now().timestamp()
 
-lunary_callback = LLMonitorCallbackHandler(app_id=os.environ["LUNARY_APP_ID"])
+lunary_callback = LLMonitorCallbackHandler(app_id=os.getenv["LUNARY_APP_ID"])
 lunary_user_id = f"ValidationRun-{current_time}"
 
 memory = ConversationBufferMemory()
