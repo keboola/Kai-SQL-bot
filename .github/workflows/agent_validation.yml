@@ -24,4 +24,14 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run validation
+      env: # Or as an environment variable
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        LUNARY_APP_ID: ${{ secrets.LUNARY_APP_ID }}
+        ACCOUNT_IDENTIFIER: ${{ secrets.ACCOUNT_IDENTIFIER }}
+        USER: ${{ secrets.USER }}
+        PASSWORD: ${{ secrets.PASSWORD }}
+        DATABASE_NAME: ${{ secrets.DATABASE_NAME }}
+        SCHEMA_NAME: ${{ secrets.SCHEMA_NAME }}
+        WAREHOUSE_NAME: ${{ secrets.WAREHOUSE_NAME }}
+        ROLE_NAME: ${{ secrets.ROLE_NAME }}
       run: python validation.py

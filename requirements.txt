@@ -9,3 +9,5 @@ faiss-cpu
 tiktoken
 loguru
 context-python
+lunary
+llmonitor
