@@ -1,6 +1,20 @@
 import streamlit as st
 import snowflake.connector
 
+
+
+def initialize_connection(schema_name):
+    account_identifier = st.secrets["account_identifier"]
+    user = st.secrets["user"]
+    password = st.secrets["password"]
+    database_name = st.secrets["database_name"]
+    schema_name = schema_name
+    warehouse_name = st.secrets["warehouse_name"]
+    role_name = st.secrets["user"]
+    conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
+
+    return conn_string
+
 def snowflake_connection_user_input():
     st.session_state['user']=st.sidebar.text_input('Snowflake Username', 'Enter Snowflake Username')
     st.session_state['password']=st.sidebar.text_input('Snowflake Password', 'Enter Snowflake Password', type="password")
@@ -22,6 +36,5 @@ def connect_to_snowflake():
     )
     return ctx
 
-
 if __name__ == '__main__':
-    connect_to_snowflake()
+    initialize_connection(schema_name=st.secrets["schema_name"])
