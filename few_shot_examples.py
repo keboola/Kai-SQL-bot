@@ -7,7 +7,10 @@ import openai
 import os
 #from langchain.agents.tools import human_approval_tool
 
-openai.api_key = os.getenv("OPENAI_API_KEY") or st.secrets["OPENAI_API_KEY"]
+try:
+    openai.api_key = os.getenv("OPENAI_API_KEY") 
+except Exception as e:
+    openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 few_shots = {'List all customers.': 'SELECT * FROM "customer";',
  'How many orders are there?': 'SELECT COUNT(*) FROM \"order\";',
