@@ -26,8 +26,8 @@ memory = ConversationBufferMemory()
 
 llm = ChatOpenAI(model="gpt-4-1106-preview", temperature=0,streaming=True)
 
-db_conn = DatabaseConnection(st.secrets["shopify_ecommerce_db"]["account_identifier"], st.secrets["shopify_ecommerce_db"]["user"], st.secrets["shopify_ecommerce_db"]["password"],
-                    st.secrets["shopify_ecommerce_db"]["database_name"], st.secrets["shopify_ecommerce_db"]["schema_name"], st.secrets["shopify_ecommerce_db"]["warehouse_name"], st.secrets["shopify_ecommerce_db"]["role_name"])
+db_conn = DatabaseConnection(os.getenv("ACCOUNT_IDENTIFIER"), os.getenv("USER"), os.getenv("PASSWORD"),
+                    os.getenv("DATABASE_NAME"), os.getenv("SCHEMA_NAME"), os.getenv("WAREHOUSE_NAME"), os.getenv("ROLE_NAME"))
 
 toolkit = db_conn.create_toolkit(llm)
 
