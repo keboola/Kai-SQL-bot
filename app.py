@@ -9,9 +9,9 @@ import pandas as pd
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemory
 
-from src.workspace_connection.workspace_connection import initialize_connection
-from agent import create_agent
-from chat import display_chat
+from src.database_connection.database_connection import DatabaseConnection
+from agent import SQLAgentCreator
+from chat import ChatDisplay
 from few_shot_examples import custom_tool_list
 
 image_path = os.path.dirname(os.path.abspath(__file__))
@@ -24,12 +24,16 @@ openai.api_key = st.secrets.OPENAI_API_KEY
 model_selection = st.sidebar.selectbox("Choose a model", ['gpt-4-1106-preview', 'gpt-4', 'gpt-3.5-turbo-16k'], help="Select the model you want to use for the chatbot.")
 llm = ChatOpenAI(model=model_selection, temperature=0,streaming=True)
 
-conn_string = initialize_connection(schema_name=st.secrets["schema_name"])
+db_conn = DatabaseConnection(st.secrets["ascend_account_identifier"], st.secrets["ascend_user"], st.secrets["ascend_password"], 
+                 st.secrets["ascend_database_name"], st.secrets["ascend_schema_name"], st.secrets["ascend_warehouse_name"], st.secrets["ascend_role_name"])
+
+toolkit = db_conn.create_toolkit(llm)
 
 msgs = StreamlitChatMessageHistory(key="messages")
 memory = ConversationBufferMemory(chat_memory=msgs)
 
-agent_executor = create_agent(conn_string=conn_string, llm=llm, custom_tool_list=custom_tool_list, memory=memory)   
+agent_creator = SQLAgentCreator(toolkit=toolkit, llm=llm, custom_tool_list=custom_tool_list, memory=memory)
+agent_executor = agent_creator.create_agent()
 
 # Create a dictionary to store feedback counts
 feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
@@ -38,7 +42,9 @@ feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 def handle_feedback(feedback_type):
     feedback_counts[feedback_type] += 1
 
-display_chat(msgs, memory, agent_executor)
+
+chat_display = ChatDisplay(agent_executor, memory)
+chat_display.display_chat()
 
 view_messages = st.sidebar.expander("View the message contents in session state")
 

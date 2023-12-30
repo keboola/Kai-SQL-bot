@@ -22,17 +22,9 @@ from few_shot_examples import custom_tool_list
 
 memory = ConversationBufferMemory()
 
-print("Validation page")
-
-schemas = [
-    'in.c-aircraft',
-    'in.c-book_2'
-]
-
 conn_string = initialize_connection()
 
 llm = ChatOpenAI(model="gpt-4-1106-preview", temperature=0,streaming=True)
-
 
 agent_executor = create_agent(conn_string=conn_string, llm=llm, custom_tool_list=custom_tool_list, memory=memory)
 
