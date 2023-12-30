@@ -11,7 +11,7 @@ from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemo
 
 from src.database_connection.database_connection import DatabaseConnection
 from agent import SQLAgentCreator
-from chat import display_chat
+from chat import ChatDisplay
 from few_shot_examples import custom_tool_list
 
 image_path = os.path.dirname(os.path.abspath(__file__))
@@ -42,7 +42,9 @@ feedback_counts = {"thumbs_up": 0, "thumbs_down": 0}
 def handle_feedback(feedback_type):
     feedback_counts[feedback_type] += 1
 
-display_chat(msgs, memory, agent_executor)
+
+chat_display = ChatDisplay(agent_executor, memory)
+chat_display.display_chat()
 
 view_messages = st.sidebar.expander("View the message contents in session state")
 
