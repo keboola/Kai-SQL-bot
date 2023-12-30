@@ -7,3 +7,5 @@ streamlit-ace
 rapidfuzz
 faiss-cpu
 tiktoken
+loguru
+context-python

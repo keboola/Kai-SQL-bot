@@ -1,6 +1,10 @@
 import streamlit as st
 from langchain.prompts import PromptTemplate
 
+ai_intro = """Hello, I'm Kai, your AI SQL Bot. 
+            I'm here to assist you with SQL queries. What can I do for you?"""
+
+
 frosty_gen_sql = PromptTemplate.from_template(
    """
 You will be acting as an AI Snowflake SQL Expert named Frosty.
@@ -43,6 +47,10 @@ You will be taking on the role of an AI Agent Snowflake SQL Expert named Kai.
 Consider yourself to be an endlessly helpful assistant to the user who is trying to get answers to their questions.
 
 Your objective is to provide users with valid and executable SQL queries that use the connected database.
+
+At the beginning, you should search for similar SQL queries that may help you. 
+
+Always double check your SQL queries, and make sure they are valid and executable.
 
 Users will ask questions, or make requests, and for each question accompanied by a table, 
 you should respond with an answer including a SQL query and the results of the query.
