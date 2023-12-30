@@ -4,6 +4,23 @@ from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemo
 from langchain.callbacks import StreamlitCallbackHandler, LLMonitorCallbackHandler, FileCallbackHandler
 
 class ChatDisplay:
+    """
+    Represents a chat display for interacting with an AI agent.
+
+    Args:
+        agent_executor (AgentExecutor): An instance of the AgentExecutor class responsible for executing AI agent actions.
+        memory (Memory): An instance of the Memory class representing the memory of the AI agent.
+
+    Attributes:
+        agent_executor (AgentExecutor): An instance of the AgentExecutor class responsible for executing AI agent actions.
+        memory (Memory): An instance of the Memory class representing the memory of the AI agent.
+        msgs (StreamlitChatMessageHistory): An instance of the StreamlitChatMessageHistory class representing the chat message history.
+
+    Methods:
+        display_chat(): Displays the chat messages and handles user input.
+
+    """
+
     def __init__(self, agent_executor, memory):
         self.agent_executor = agent_executor
         self.memory = memory
