@@ -10,3 +10,4 @@ tiktoken
 loguru
 context-python
 lunary
+llmonitor
