@@ -3,12 +3,12 @@ import snowflake.connector
 
 
 
-def initialize_connection():
+def initialize_connection(schema_name):
     account_identifier = st.secrets["account_identifier"]
     user = st.secrets["user"]
     password = st.secrets["password"]
     database_name = st.secrets["database_name"]
-    schema_name = st.secrets["schema_name"]
+    schema_name = schema_name
     warehouse_name = st.secrets["warehouse_name"]
     role_name = st.secrets["user"]
     conn_string = f"snowflake://{user}:{password}@{account_identifier}/{database_name}/{schema_name}?warehouse={warehouse_name}&role={role_name}"
@@ -37,4 +37,4 @@ def connect_to_snowflake():
     return ctx
 
 if __name__ == '__main__':
-    initialize_connection()
+    initialize_connection(schema_name=st.secrets["schema_name"])
