@@ -4,9 +4,10 @@ from langchain.schema import Document
 from langchain.agents.agent_toolkits import create_retriever_tool
 import streamlit as st
 import openai
+import os
 #from langchain.agents.tools import human_approval_tool
 
-openai.api_key = st.secrets.OPENAI_API_KEY
+openai.api_key = os.getenv("OPENAI_API_KEY") or st.secrets["OPENAI_API_KEY"]
 
 few_shots = {'List all customers.': 'SELECT * FROM "customer";',
  'How many orders are there?': 'SELECT COUNT(*) FROM \"order\";',
