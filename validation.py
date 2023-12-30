@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import datetime
 import concurrent.futures
+import os
 
 from langchain.memory import ConversationBufferMemory
 from langchain.chat_models import ChatOpenAI
@@ -18,7 +19,7 @@ from prompts import custom_gen_sql
 #get current datetime as a unix timestamp
 current_time = datetime.datetime.now().timestamp()
 
-lunary_callback = LLMonitorCallbackHandler(app_id=st.secrets.LUNARY_APP_ID)
+lunary_callback = LLMonitorCallbackHandler(app_id=os.environ["LUNARY_APP_ID"])
 lunary_user_id = f"ValidationRun-{current_time}"
 
 memory = ConversationBufferMemory()
@@ -92,4 +93,4 @@ print("evaluation complete")
 
 df = pd.DataFrame.from_dict(evaluation_output, orient='index')
 
-df.to_csv('evaluation_output.csv', index=False)
+#df.to_csv('evaluation_output.csv', index=False)
