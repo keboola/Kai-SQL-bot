@@ -11,3 +11,5 @@ loguru
 context-python
 lunary
 llmonitor
+langchain_core
+langchain_community
