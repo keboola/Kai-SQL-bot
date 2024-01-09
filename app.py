@@ -25,7 +25,7 @@ model_selection = st.sidebar.selectbox("Choose a model", ['gpt-4-1106-preview', 
 llm = ChatOpenAI(model=model_selection, temperature=0,streaming=True)
 
 db_conn = DatabaseConnection(st.secrets["account_identifier"], st.secrets["user"], st.secrets["password"],
-                                    st.secrets["database_name"], st.secrets["schema_name"], st.secrets["warehouse_name"], st.secrets["role_name"])
+                                    st.secrets["database_name"], st.secrets["schema_name"], st.secrets["warehouse_name"], st.secrets["user"])
 
 toolkit = db_conn.create_toolkit(llm)
 
