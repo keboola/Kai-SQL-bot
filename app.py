@@ -24,11 +24,8 @@ openai.api_key = st.secrets.OPENAI_API_KEY
 model_selection = st.sidebar.selectbox("Choose a model", ['gpt-4-1106-preview', 'gpt-4', 'gpt-3.5-turbo-16k'], help="Select the model you want to use for the chatbot.")
 llm = ChatOpenAI(model=model_selection, temperature=0,streaming=True)
 
-ascend_db_conn = DatabaseConnection(st.secrets["ascend_climbing"]["account_identifier"], st.secrets["ascend_climbing"]["user"], st.secrets["ascend_climbing"]["password"],
-                                    st.secrets["ascend_climbing"]["database_name"], st.secrets["ascend_climbing"]["schema_name"], st.secrets["ascend_climbing"]["warehouse_name"], st.secrets["ascend_climbing"]["role_name"])
-
-db_conn = DatabaseConnection(st.secrets["shopify_ecommerce_db"]["account_identifier"], st.secrets["shopify_ecommerce_db"]["user"], st.secrets["shopify_ecommerce_db"]["password"],
-                    st.secrets["shopify_ecommerce_db"]["database_name"], st.secrets["shopify_ecommerce_db"]["schema_name"], st.secrets["shopify_ecommerce_db"]["warehouse_name"], st.secrets["shopify_ecommerce_db"]["role_name"])
+db_conn = DatabaseConnection(st.secrets["account_identifier"], st.secrets["user"], st.secrets["password"],
+                                    st.secrets["database_name"], st.secrets["schema_name"], st.secrets["warehouse_name"], st.secrets["role_name"])
 
 toolkit = db_conn.create_toolkit(llm)
 
