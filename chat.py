@@ -1,7 +1,10 @@
 import streamlit as st
-from prompts import ai_intro, custom_gen_sql
+from prompts import ai_intro, custom_gen_sql, pandy_gen_sql
 from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemory
-from langchain.callbacks import StreamlitCallbackHandler, LLMonitorCallbackHandler, FileCallbackHandler
+from langchain.callbacks import FileCallbackHandler
+from langchain_community.callbacks import LLMonitorCallbackHandler
+from langchain_community.callbacks import StreamlitCallbackHandler
+
 
 class ChatDisplay:
     """
@@ -41,18 +44,20 @@ class ChatDisplay:
             self.msgs.add_user_message(prompt)
             st.chat_message("user").write(prompt)    
             
-            prompt_formatted = custom_gen_sql.format(context=prompt)
+            prompt_formatted = pandy_gen_sql.format(context=prompt)
             try:
-                response = self.agent_executor.run(input=prompt_formatted, callbacks=[st_callback, lunary_callback, logfile_handler], memory=self.memory, return_intermediate_steps=True)
+                response = self.agent_executor.invoke({"input": prompt_formatted})
+                                                #, callbacks=[st_callback, #lunary_callback, 
+                                                # logfile_handler], memory=self.memory, return_intermediate_steps=True)
             except ValueError as e:
                 response = str(e)
                 if not response.startswith("Could not parse LLM output: `"):
                     raise e
                 response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
         
-            self.msgs.add_ai_message(response)
-            st.chat_message("Kai").write(response)
-
+            self.msgs.add_ai_message(response["output"])
+            st.chat_message("ai").write(response["output"])
+            
 # Usage
 # agent_executor = ... # Initialize your agent executor
 # memory = ... # Initialize your memory

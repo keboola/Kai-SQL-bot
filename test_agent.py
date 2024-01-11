@@ -1,6 +1,7 @@
 import unittest
 from unittest.mock import MagicMock
 from agent import SQLAgentCreator
+from langchain.agents.agent_types import AgentType
 
 class TestSQLAgentCreator(unittest.TestCase):
     def setUp(self):
