@@ -10,3 +10,4 @@ test/evaluation_output.csv
 evaluation_output.csv
 chat_log.txt
 spider/*
+new_agent_test.ipynb

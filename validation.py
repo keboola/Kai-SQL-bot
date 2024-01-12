@@ -73,8 +73,6 @@ def process_data(item):
 
     return {
         "n": n,
-        "model": 'GPT-4-Turbo',
-        "agent_type": 'OPENAI_FUNCTIONS',
         "question": data['question'],
         "baseline_answer": data['answer'],
         "prediction (new agent run)": response,

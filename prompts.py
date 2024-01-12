@@ -4,6 +4,24 @@ from langchain.prompts import PromptTemplate
 ai_intro = """Hello, I'm Kai, your AI SQL Bot. 
             I'm here to assist you with SQL queries. What can I do for you?"""
 
+pandy_gen_sql = PromptTemplate.from_template(
+"""
+Before generating a SQL query for Snowflake, consider similar examples known to you. It's essential to generate valid SQL query that adheres to Snowflake standards.
+
+If you encounter issues with validity, follow these troubleshooting steps:
+1. Enclose lowercase table and column names in double quotes.
+2. Avoid escaping quotes in the SQL code with a backslash.
+3. Do not wrap the entire SQL code in quotes.
+4. Remove any markdown formatting from the SQL code.
+
+Given the input question, generate a SQL query for Snowlflake. Write your query within <SQL></SQL>.
+
+Always return your final answer in the following format:
+
+Answer:\nthe final answer to the original input question\n\nQuery:\n```query used to get the final answer```
+
+New human question: {context}
+""")
 
 frosty_gen_sql = PromptTemplate.from_template(
    """
