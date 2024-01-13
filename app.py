@@ -5,15 +5,18 @@ import openai
 import pandas as pd
 import sqlalchemy
 import streamlit as st
-from langchain import hub
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory, StreamlitChatMessageHistory
+from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder, PromptTemplate, \
+    SystemMessagePromptTemplate
+from langchain_core.runnables import Runnable
 from llama_hub.tools.waii import WaiiToolSpec
 from streamlit_feedback import streamlit_feedback
 
 from chat import ChatDisplay
 from create import create_snowflake_transformation
+from prompts import pandy_gen_sql
 
 image_path = os.path.dirname(os.path.abspath(__file__))
 st.image(image_path+'/static/keboola_logo.png', width=200)
@@ -35,16 +38,15 @@ llm = ChatOpenAI(model=model_selection, temperature=0, streaming=True)
 conn_string = (f'snowflake://{st.secrets["user"]}@{st.secrets["account_identifier"]}/{st.secrets["database_name"]}'
                f'?role={st.secrets["user"]}&warehouse={st.secrets["warehouse_name"]}')
 
-db_conn = conn_string
-msgs_history = StreamlitChatMessageHistory(key='messages')  # the history is def not working ahah
-memory = ConversationBufferMemory(chat_memory=msgs_history)
+msgs_history = StreamlitChatMessageHistory(key='sql-bot-message-history-in-streamlit')
+memory = ConversationBufferMemory(memory_key='chat_history', chat_memory=msgs_history, return_messages=True)
 
 waii_api_key = st.secrets['waii_prod_api_key']
 waii_tool = WaiiToolSpec(
     url='https://tweakit.waii.ai/api/',
     # API Key of Waii (not OpenAI API key)
     api_key=waii_api_key,
-    database_key=db_conn,
+    database_key=conn_string,
     verbose=True
 )
 tools = waii_tool.to_tool_list()
@@ -76,9 +78,16 @@ for t in converted_langchain_tools:
         t.description = tool_to_description[t.name]
         langchain_tools.append(t)
 
-prompt = hub.pull('hwchase17/openai-tools-agent')
-agent = create_openai_tools_agent(llm, langchain_tools, prompt=prompt)
-agent_executor = AgentExecutor(agent=agent, tools=langchain_tools, verbose=True)
+prompt: ChatPromptTemplate = ChatPromptTemplate.from_messages([
+    SystemMessagePromptTemplate(prompt=pandy_gen_sql),
+    MessagesPlaceholder(variable_name='chat_history'),
+    HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['input'], template='{input}')),
+    MessagesPlaceholder(variable_name='agent_scratchpad')
+])
+agent: Runnable = create_openai_tools_agent(llm, langchain_tools, prompt=prompt)
+agent_executor = AgentExecutor(
+    agent=agent, tools=langchain_tools, verbose=True, memory=memory
+)
 
 # Create a dictionary to store feedback counts
 feedback_counts = {'thumbs_up': 0, 'thumbs_down': 0}
@@ -89,7 +98,7 @@ def handle_feedback(feedback_type):
     feedback_counts[feedback_type] += 1
 
 
-chat_display = ChatDisplay(agent_executor, memory)
+chat_display = ChatDisplay(agent_executor)
 chat_display.display_chat()
 
 msgs = chat_display.msgs
@@ -141,7 +150,5 @@ if len(msgs.messages) > 1:
         ''',
         unsafe_allow_html=True,
     )
-    # Display thumbs-up button in the first column
-    headers = {'Content-Type': 'application/json'}
     with view_messages:
-        view_messages.json(st.session_state.messages)
+        view_messages.json(st.session_state.get('sql-bot-message-history-in-streamlit', []))
