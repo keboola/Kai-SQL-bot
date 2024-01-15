@@ -2,8 +2,6 @@ import os
 import re
 
 import openai
-import pandas as pd
-import sqlalchemy
 import streamlit as st
 from langchain.agents import AgentExecutor, create_openai_tools_agent
 from langchain.chat_models import ChatOpenAI
@@ -101,38 +99,36 @@ def handle_feedback(feedback_type):
 chat_display = ChatDisplay(agent_executor)
 chat_display.display_chat()
 
-msgs = chat_display.msgs
-
 view_messages = st.sidebar.expander('View the message contents in session state')
 
 # get the output of the last message from the agent 
-if len(msgs.messages) > 1:
-    last_output_message = msgs.messages[-1].content    
+if len(msgs_history.messages) > 1:
+    last_output_message = msgs_history.messages[-1].content
     
     col1, col2, col3 = st.columns(3)
-    def execute_sql():
-        sql_matches = re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL)
-        for sql in sql_matches:
-            try:
-                # connect to snowflake using sqlalchemy engine and execute the sql query
-                engine = sqlalchemy.create_engine(conn_string)
-                df = engine.execute(sql).fetchall()
-                df = pd.DataFrame(df)
-                st.sidebar.write('Results')
-                st.sidebar.dataframe(df)
-            except Exception as e:
-                st.write(e)
-                st.write('invalid_query')
+    # def execute_sql():
+    #     sql_matches = re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL)
+    #     for sql in sql_matches:
+    #         try:
+    #             # connect to snowflake using sqlalchemy engine and execute the sql query
+    #             engine = sqlalchemy.create_engine(conn_string)
+    #             df = engine.execute(sql).fetchall()
+    #             df = pd.DataFrame(df)
+    #             st.sidebar.write('Results')
+    #             st.sidebar.dataframe(df)
+    #         except Exception as e:
+    #             st.write(e)
+    #             st.write('invalid_query')
 
     if re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL):
         query = re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL)[0]
-        col2.button('Execute SQL', on_click=execute_sql, use_container_width=True)
+        # col2.button('Execute SQL', on_click=execute_sql, use_container_width=True)
         with st.sidebar.container():
             st.write('❄️ Create Snowflake Transformation in Keboola')
             create_snowflake_transformation(query)
     
     def clear_chat():
-        msgs.clear() 
+        msgs_history.clear()
 
     col3.button('Clear Chat', on_click=clear_chat, use_container_width=True)
     with col1:
