@@ -1,7 +1,7 @@
 import enum
 import os
 import re
-from typing import List, Optional
+from typing import Any, List, Mapping, Optional
 
 import openai
 import streamlit as st
@@ -104,9 +104,8 @@ def _create_agent(model: _Model, toolkit: _Toolkit) -> AgentExecutor:
     )
 
 
-def _call_agent(agent: AgentExecutor, user_input: str):
-    st.chat_message('user').write(user_input)
-    response = agent.invoke(
+def _call_agent(agent: AgentExecutor, user_input: str) -> Mapping[str, Any]:
+    return agent.invoke(
         input={'input': user_input},
         config={'callbacks': [
             StreamlitCallbackHandler(st.container(), expand_new_thoughts=True),
@@ -114,7 +113,6 @@ def _call_agent(agent: AgentExecutor, user_input: str):
             FileCallbackHandler('chat_log.txt'),
         ]}
     )
-    st.chat_message('ai').write(response['output'])
 
 
 def app():
@@ -155,36 +153,46 @@ def app():
     chat_history = StreamlitChatMessageHistory(key=_ST_CHAT_HiSTORY_KEY)
     st.sidebar.button('Clear Chat', on_click=lambda: chat_history.clear())
 
-    if len(chat_history.messages) == 0:
-        chat_history.add_ai_message(ai_intro)
+    chat = st.container()
+    with chat:
+        if len(chat_history.messages) == 0:
+            chat_history.add_ai_message(ai_intro)
 
-    for msg in chat_history.messages:
-        st.chat_message(msg.type).write(msg.content)
+        for msg in chat_history.messages:
+            st.chat_message(msg.type).write(msg.content)
 
     if user_input := st.chat_input():
-        _call_agent(agent, user_input)
+        with chat:
+            st.chat_message('user').write(user_input)
+            response = _call_agent(agent, user_input)
+            st.chat_message('ai').write(response['output'])
 
     # get the output of the last message from the agent
     if len(chat_history.messages) > 1:
         last_output_message = chat_history.messages[-1].content
         if re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL):
-            col1, col2, col3 = st.columns(3)
-            # Apply custom CSS to reduce margin between columns
-            st.markdown(
-                '''
-                <style>
-                .st-b3 {
-                    margin-left: -10px; /* Adjust the negative margin as needed */
-                }
-                </style>
-                ''',
-                unsafe_allow_html=True,
-            )
+            with chat:
+                col1, col2, col3 = st.columns(3)
+                # Apply custom CSS to reduce margin between columns
+                st.markdown(
+                    '''
+                    <style>
+                    .st-b3 {
+                        margin-left: -10px; /* Adjust the negative margin as needed */
+                    }
+                    </style>
+                    ''',
+                    unsafe_allow_html=True,
+                )
+
+            def _execute_sql_handler():
+                with chat:
+                    _call_agent(agent, 'Run the last query!')
 
             query = re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL)[0]
             col2.button(
                 'Execute SQL',
-                on_click=lambda: _call_agent(agent, 'Run the last query!'),
+                on_click=_execute_sql_handler,
                 use_container_width=True)
             col3.button(
                 'Create Transformation',
