@@ -1,16 +1,17 @@
 streamlit
 langchain==0.0.354
-SQLAlchemy
+SQLAlchemy~=1.4
+SQLAlchemy-Utils~=0.41
 openai~=1.7
-snowflake-sqlalchemy==1.4.7
+snowflake-sqlalchemy~=1.5
 streamlit-ace
 rapidfuzz
 faiss-cpu
 tiktoken
 loguru
 #context-python  # requires python >=3.10
-lunary
-llmonitor
+#lunary
+llmonitor~=0.0.51
 langchain_core
 langchain_community
 streamlit_feedback
@@ -18,4 +19,3 @@ kbcstorage
 waii-sdk-py
 llama_hub
 langchainhub
-
