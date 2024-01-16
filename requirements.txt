@@ -1,21 +1,21 @@
-streamlit
+#context-python  # requires python >=3.10
+faiss-cpu
+kbcstorage
 langchain==0.0.354
+langchain_community
+langchain_core
+langchainhub
+llama_hub
+llmonitor~=0.0.51
+loguru
+#lunary
+openai~=1.7
+rapidfuzz
+snowflake-sqlalchemy~=1.5
 SQLAlchemy~=1.4
 SQLAlchemy-Utils~=0.41
-openai~=1.7
-snowflake-sqlalchemy~=1.5
+streamlit
 streamlit-ace
-rapidfuzz
-faiss-cpu
-tiktoken
-loguru
-#context-python  # requires python >=3.10
-#lunary
-llmonitor~=0.0.51
-langchain_core
-langchain_community
 streamlit_feedback
-kbcstorage
+tiktoken
 waii-sdk-py
-llama_hub
-langchainhub
