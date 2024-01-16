@@ -1,21 +1,12 @@
-#context-python  # requires python >=3.10
-faiss-cpu
 kbcstorage
 langchain==0.0.354
 langchain_community
 langchain_core
-langchainhub
 llama_hub
 llmonitor~=0.0.51
-loguru
-#lunary
 openai~=1.7
-rapidfuzz
 snowflake-sqlalchemy~=1.5
 SQLAlchemy~=1.4
 SQLAlchemy-Utils~=0.41
 streamlit
-streamlit-ace
-streamlit_feedback
-tiktoken
 waii-sdk-py
