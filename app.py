@@ -1,4 +1,5 @@
 import enum
+import json
 import os
 import re
 from typing import Any, List, Mapping, Optional
@@ -19,11 +20,13 @@ from langchain_core.tools import BaseTool
 from llama_hub.tools.waii import WaiiToolSpec
 from llama_index.tools import FunctionTool
 from llmonitor.langchain import LLMonitorCallbackHandler
+from requests import RequestException
 
-from create import create_snowflake_transformation
+from create import create_snowflake_transformation, get_transformation_url
 from prompts import ai_intro, custom_gen_sql, pandy_gen_sql
 
 _ST_CHAT_HiSTORY_KEY = 'sql-bot-message-history-in-streamlit'
+_ST_TRANS_QUERY = 'transformation_query'
 
 
 class _Model(enum.Enum):
@@ -153,6 +156,19 @@ def app():
     chat_history = StreamlitChatMessageHistory(key=_ST_CHAT_HiSTORY_KEY)
     st.sidebar.button('Clear Chat', on_click=lambda: chat_history.clear())
 
+    # this makes columns only as wide as are the buttons, see https://stackoverflow.com/a/77332142
+    st.markdown("""
+            <style>
+                div[data-testid="column"] {
+                    width: fit-content !important;
+                    flex: unset;
+                }
+                div[data-testid="column"] * {
+                    width: fit-content !important;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+
     chat = st.container()
     with chat:
         if len(chat_history.messages) == 0:
@@ -163,6 +179,7 @@ def app():
 
     if user_input := st.chat_input():
         with chat:
+            st.session_state.pop(_ST_TRANS_QUERY, None)
             st.chat_message('user').write(user_input)
             response = _call_agent(agent, user_input)
             st.chat_message('ai').write(response['output'])
@@ -172,32 +189,56 @@ def app():
         last_output_message = chat_history.messages[-1].content
         if re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL):
             with chat:
-                col1, col2, col3 = st.columns(3)
-                # Apply custom CSS to reduce margin between columns
-                st.markdown(
-                    '''
-                    <style>
-                    .st-b3 {
-                        margin-left: -10px; /* Adjust the negative margin as needed */
-                    }
-                    </style>
-                    ''',
-                    unsafe_allow_html=True,
-                )
+                col1, col2 = st.columns(2)
 
             def _execute_sql_handler():
                 with chat:
                     _call_agent(agent, 'Run the last query!')
 
+            def _create_transformation_handler():
+                st.session_state[_ST_TRANS_QUERY] = query
+
             query = re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL)[0]
-            col2.button(
+            col1.button(
                 'Execute SQL',
                 on_click=_execute_sql_handler,
-                use_container_width=True)
-            col3.button(
+                use_container_width=True,
+                disabled=bool(st.session_state.get(_ST_TRANS_QUERY)))
+            col2.button(
                 'Create Transformation',
-                on_click=lambda: create_snowflake_transformation(query),
-                use_container_width=True)
+                on_click=_create_transformation_handler,
+                use_container_width=True,
+                disabled=bool(st.session_state.get(_ST_TRANS_QUERY)))
+
+    if st.session_state.get(_ST_TRANS_QUERY):
+        query = st.session_state.get(_ST_TRANS_QUERY)
+        with chat:
+            with st.form(key='transformation_details', clear_on_submit=False):
+                tr_name = st.text_input('Transformation name')
+                tr_description = st.text_area('Transformation description')
+                tr_output_table = st.text_input('Output table name')
+                col1, col2 = st.columns(2)
+                submitted = col1.form_submit_button('Create')
+                cancelled = col2.form_submit_button('Cancel')
+
+            if submitted:
+                try:
+                    response = create_snowflake_transformation(
+                        sql_query=query, name=tr_name, description=tr_description, output_table_name=tr_output_table)
+                    chat_history.add_ai_message(
+                        f'Created transformation [{tr_name}]({get_transformation_url(response)})')
+
+                except RequestException as rqe:
+                    chat_history.add_ai_message(
+                        f'Failed to created transformation `{tr_name}`.\n'
+                        f'```json{json.dumps(rqe.response.json(), ensure_ascii=False, indent=2)}```')
+
+                st.session_state.pop(_ST_TRANS_QUERY)
+                st.rerun()
+
+            if cancelled:
+                st.session_state.pop(_ST_TRANS_QUERY)
+                st.rerun()
 
 
 app()
