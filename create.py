@@ -4,7 +4,6 @@ from typing import Any, Mapping
 import streamlit as st
 from kbcstorage.client import Client
 from kbcstorage.configurations import Configurations
-from requests import RequestException
 
 COMPONENT_ID = 'keboola.snowflake-transformation'
 BRANCH_ID = 'default'
