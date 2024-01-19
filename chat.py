@@ -1,7 +1,7 @@
 import streamlit as st
 from prompts import ai_intro, custom_gen_sql
 from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemory
-from langchain.callbacks import FileCallbackHandler
+from langchain.callbacks import FileCallbackHandler, StreamlitCallbackHandler
 #from langchain_community.callbacks import LLMonitorCallbackHandler
 #from langchain_community.callbacks import StreamlitCallbackHandler
 
@@ -46,9 +46,7 @@ class ChatDisplay:
             
             prompt_formatted = custom_gen_sql.format(context=prompt)
             try:
-                response = self.agent_executor.invoke({"input": prompt_formatted})
-                                                #, callbacks=[st_callback, #lunary_callback, 
-                                                # logfile_handler], memory=self.memory, return_intermediate_steps=True)
+                response = self.agent_executor.invoke({"input": prompt_formatted}, callbacks=[st_callback], memory=self.memory, return_intermediate_steps=True)
             except ValueError as e:
                 response = str(e)
                 if not response.startswith("Could not parse LLM output: `"):
