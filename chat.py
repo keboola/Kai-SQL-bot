@@ -2,8 +2,8 @@ import streamlit as st
 from prompts import ai_intro, custom_gen_sql
 from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemory
 from langchain.callbacks import FileCallbackHandler
-from langchain_community.callbacks import LLMonitorCallbackHandler
-from langchain_community.callbacks import StreamlitCallbackHandler
+#from langchain_community.callbacks import LLMonitorCallbackHandler
+#from langchain_community.callbacks import StreamlitCallbackHandler
 
 
 class ChatDisplay:
