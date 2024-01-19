@@ -28,6 +28,7 @@ class ChatDisplay:
         self.agent_executor = agent_executor
         self.memory = memory
         self.msgs = StreamlitChatMessageHistory()
+        self.callbacks = []
 
     def display_chat(self):
         st_callback = StreamlitCallbackHandler(st.container(), expand_new_thoughts=True)
@@ -46,15 +47,15 @@ class ChatDisplay:
             
             prompt_formatted = custom_gen_sql.format(context=prompt)
             try:
-                response = self.agent_executor.invoke({"input": prompt_formatted}, callbacks=[st_callback], memory=self.memory, return_intermediate_steps=True)
+                response = self.agent_executor.run(input=prompt_formatted, callbacks=[st_callback], memory=self.memory, return_intermediate_steps=True)
             except ValueError as e:
                 response = str(e)
                 if not response.startswith("Could not parse LLM output: `"):
                     raise e
                 response = response.removeprefix("Could not parse LLM output: `").removesuffix("`")
         
-            self.msgs.add_ai_message(response["output"])
-            st.chat_message("ai").write(response["output"])
+            self.msgs.add_ai_message(response)
+            st.chat_message("ai").write(response)
             
 # Usage
 # agent_executor = ... # Initialize your agent executor
