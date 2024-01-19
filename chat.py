@@ -1,5 +1,5 @@
 import streamlit as st
-from prompts import ai_intro, custom_gen_sql, pandy_gen_sql
+from prompts import ai_intro, custom_gen_sql
 from langchain.memory import StreamlitChatMessageHistory, ConversationBufferMemory
 from langchain.callbacks import FileCallbackHandler
 from langchain_community.callbacks import LLMonitorCallbackHandler
@@ -44,7 +44,7 @@ class ChatDisplay:
             self.msgs.add_user_message(prompt)
             st.chat_message("user").write(prompt)    
             
-            prompt_formatted = pandy_gen_sql.format(context=prompt)
+            prompt_formatted = custom_gen_sql.format(context=prompt)
             try:
                 response = self.agent_executor.invoke({"input": prompt_formatted})
                                                 #, callbacks=[st_callback, #lunary_callback, 
