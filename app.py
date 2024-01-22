@@ -21,9 +21,11 @@ from llama_hub.tools.waii import WaiiToolSpec
 from llama_index.tools import FunctionTool
 from llmonitor.langchain import LLMonitorCallbackHandler
 from requests import RequestException
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.pydantic_v1 import BaseModel, Field
 
 from create import create_snowflake_transformation, get_transformation_url
-from prompts import ai_intro, custom_gen_sql, pandy_gen_sql
+from prompts import ai_intro, custom_gen_sql, pandy_gen_sql, kai_gen_sql
 
 _ST_CHAT_HiSTORY_KEY = 'sql-bot-message-history-in-streamlit'
 _ST_TRANS_QUERY = 'transformation_query'
@@ -83,7 +85,7 @@ def _create_agent(model: _Model, toolkit: _Toolkit) -> AgentExecutor:
     llm = ChatOpenAI(model=model.value, temperature=0, streaming=True)
     if toolkit == _Toolkit.WAII:
         tools = _get_waii_tools()
-        system_prompt = SystemMessagePromptTemplate(prompt=pandy_gen_sql)
+        system_prompt = SystemMessagePromptTemplate(prompt=kai_gen_sql)
     elif toolkit == _Toolkit.LANGCHAIN:
         tools = _get_langchain_tools(llm)
         system_prompt = SystemMessagePromptTemplate(prompt=custom_gen_sql)
@@ -117,6 +119,28 @@ def _call_agent(agent: AgentExecutor, user_input: str) -> Mapping[str, Any]:
         ]}
     )
 
+class _AI_config(BaseModel):
+    ai_tr_name: str = Field(description="name of the transformation (with spaces between words)")
+    ai_tr_description: str = Field(description="description of the transformation")
+    ai_output_table: str = Field(description="name of the output table (no spaces)")
+
+def generate_config_details(chat_history):
+    model = ChatOpenAI(model='gpt-4-1106-preview', temperature=0)
+    ai_query = f"""
+Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
+a description (max 300 characters) and output table name, focus on describing the user's business intent. 
+        {chat_history}"""
+    
+    parser = JsonOutputParser(pydantic_object=_AI_config)
+    
+    prompt = PromptTemplate(
+    template="Answer the user query.\n{format_instructions}\n{query}\n",
+    input_variables=["query"],
+    partial_variables={"format_instructions": parser.get_format_instructions()},
+)
+    chain = prompt | model | parser
+
+    return chain.invoke({"query": ai_query})
 
 def app():
     openai.api_key = st.secrets.OPENAI_API_KEY
@@ -214,9 +238,10 @@ def app():
         query = st.session_state.get(_ST_TRANS_QUERY)
         with chat:
             with st.form(key='transformation_details', clear_on_submit=False):
-                tr_name = st.text_input('Transformation name')
-                tr_description = st.text_area('Transformation description')
-                tr_output_table = st.text_input('Output table name')
+                st.session_state['ai_config_details'] = generate_config_details(chat_history.messages[-2:])
+                tr_name = st.text_input('Transformation name', value = st.session_state['ai_config_details']['ai_tr_name'])
+                tr_description = st.text_area('Transformation description', st.session_state['ai_config_details']['ai_tr_description'])
+                tr_output_table = st.text_input('Output table name', st.session_state['ai_config_details']['ai_output_table'])
                 col1, col2 = st.columns(2)
                 submitted = col1.form_submit_button('Create')
                 cancelled = col2.form_submit_button('Cancel')

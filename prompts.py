@@ -3,6 +3,11 @@ from langchain.prompts import PromptTemplate
 ai_intro = """Hello, I'm Kai, your AI SQL Bot. 
             I'm here to assist you with SQL queries. What can I do for you?"""
 
+kai_gen_sql = PromptTemplate.from_template(
+    """
+You will be acting as an AI Snowflake SQL Expert named Kai. Your goal is to give correct, executable SQL query to users.
+""")
+
 pandy_gen_sql = PromptTemplate.from_template(
     """
 Before generating a SQL query for Snowflake, consider similar examples known to you. It's essential to generate 
