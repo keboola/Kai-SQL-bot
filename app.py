@@ -24,7 +24,6 @@ from few_shot_examples import custom_tool_list
 
 
 image_path = os.path.dirname(os.path.abspath(__file__))
-st.set_page_config(page_title="Kai SQL Bot", page_icon=":robot_face:")
 st.image(image_path+'/static/keboola_logo.png', width=200)
 home_title = "Kai SQL Bot"  # Replace with your title
 
