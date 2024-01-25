@@ -125,14 +125,14 @@ def _call_agent(agent: AgentExecutor, user_input: str) -> Mapping[str, Any]:
 class _AIConfig(BaseModel):
     ai_tr_name: str = Field(description='name of the transformation (with spaces between words)')
     ai_tr_description: str = Field(description='description of the transformation')
-    ai_output_table: str = Field(description='name of the output table (no spaces)')
+    ai_output_table: str = Field(description='name of the output table')
 
 
 def _generate_config_details(chat_history: List[BaseMessage], model: _Model) -> Mapping[str, Any]:
     model = ChatOpenAI(model=model.value, temperature=0)
     ai_query = f'''
 Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
-a description (max 300 characters) and output table name, focus on describing the user's business intent. 
+description (max 300 characters) and output table name adhering to Snowflake naming conventions. Focus on describing the user's business intent. 
         {chat_history}'''
 
     parser = JsonOutputParser(pydantic_object=_AIConfig)
