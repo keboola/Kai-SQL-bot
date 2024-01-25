@@ -1,8 +1,8 @@
 faiss-cpu
 kbcstorage
 langchain==0.0.354
-langchain_community
-langchain_core
+langchain_community==0.0.13
+langchain_core==0.1.13
 llama_hub
 llmonitor~=0.0.51
 openai~=1.7
