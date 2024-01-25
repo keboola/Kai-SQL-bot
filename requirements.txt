@@ -1,4 +1,4 @@
-streamlit
+streamlit==0.2.3
 langchain==0.0.354
 SQLAlchemy
 openai~=1.7
