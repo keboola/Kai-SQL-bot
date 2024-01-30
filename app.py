@@ -6,24 +6,25 @@ from typing import Any, List, Mapping, Optional
 
 import openai
 import streamlit as st
-from langchain.agents import AgentExecutor, create_openai_tools_agent
+from langchain.agents import AgentExecutor, AgentType, initialize_agent
 from langchain.callbacks import FileCallbackHandler
 from langchain.callbacks.streamlit import StreamlitCallbackHandler
-from langchain.chat_models import ChatOpenAI
-from langchain.memory import ConversationBufferMemory, StreamlitChatMessageHistory
+from langchain.memory import ConversationBufferMemory
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.messages import BaseMessage
-from langchain_core.prompts import ChatPromptTemplate, HumanMessagePromptTemplate, MessagesPlaceholder, \
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import HumanMessagePromptTemplate, MessagesPlaceholder, \
     PromptTemplate, SystemMessagePromptTemplate
+from langchain_core.prompts.chat import MessageLike
+from langchain_core.pydantic_v1 import BaseModel, Field
 from langchain_core.tools import BaseTool
+from langchain_openai import ChatOpenAI
 from llama_hub.tools.waii import WaiiToolSpec
 from llama_index.tools import FunctionTool
 from llmonitor.langchain import LLMonitorCallbackHandler
 from requests import RequestException
-from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.pydantic_v1 import BaseModel, Field
 
 from create import create_snowflake_transformation, get_transformation_url
 from prompts import ai_intro, custom_gen_sql, kai_gen_sql
@@ -84,7 +85,7 @@ def _get_langchain_tools(llm: BaseLanguageModel) -> List[BaseTool]:
 
 
 def _create_agent(model: _Model, toolkit: _Toolkit) -> AgentExecutor:
-    llm = ChatOpenAI(model=model.value, temperature=0, streaming=True)
+    llm = ChatOpenAI(model_name=model.value, temperature=0, streaming=True)
     if toolkit == _Toolkit.WAII:
         tools = _get_waii_tools()
         system_prompt = SystemMessagePromptTemplate(prompt=kai_gen_sql)
@@ -94,20 +95,22 @@ def _create_agent(model: _Model, toolkit: _Toolkit) -> AgentExecutor:
     else:
         raise ValueError(f'Unknown toolkit: {toolkit}')
 
-    prompt: ChatPromptTemplate = ChatPromptTemplate.from_messages([
-        system_prompt,
+    prompt: List[MessageLike] = [
         MessagesPlaceholder(variable_name='chat_history'),
         HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['input'], template='{input}')),
         MessagesPlaceholder(variable_name='agent_scratchpad')
-    ])
-    chat_memory = StreamlitChatMessageHistory(key=_ST_CHAT_HiSTORY_KEY)
-    chat_memory.clear()
+    ]
 
-    return AgentExecutor(
-        agent=create_openai_tools_agent(llm, tools, prompt=prompt),
+    return initialize_agent(
         tools=tools,
-        verbose=True,
-        memory=ConversationBufferMemory(memory_key='chat_history', chat_memory=chat_memory, return_messages=True)
+        llm=llm,
+        agent=AgentType.OPENAI_FUNCTIONS,
+        agent_kwargs={
+            'system_message': system_prompt,
+            'extra_prompt_messages': prompt,
+        },
+        memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True),
+        verbose=True
     )
 
 
@@ -129,10 +132,11 @@ class _AIConfig(BaseModel):
 
 
 def _generate_config_details(chat_history: List[BaseMessage], model: _Model) -> Mapping[str, Any]:
-    model = ChatOpenAI(model=model.value, temperature=0)
+    model = ChatOpenAI(model_name=model.value, temperature=0)
     ai_query = f'''
 Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
-description (max 300 characters) and output table name adhering to Snowflake naming conventions. Focus on describing the user's business intent. 
+description (max 300 characters) and output table name adhering to Snowflake naming conventions. 
+Focus on describing the user's business intent. 
         {chat_history}'''
 
     parser = JsonOutputParser(pydantic_object=_AIConfig)
@@ -182,8 +186,9 @@ def app():
 
     assert isinstance(agent, AgentExecutor)
 
-    chat_history = StreamlitChatMessageHistory(key=_ST_CHAT_HiSTORY_KEY)
-    st.sidebar.button('Clear Chat', on_click=lambda: chat_history.clear())
+    agent_memory = agent.memory
+    assert isinstance(agent_memory, ConversationBufferMemory)
+    st.sidebar.button('Clear Chat', on_click=lambda: agent_memory.clear())
 
     # this makes columns only as wide as are the buttons, see https://stackoverflow.com/a/77332142
     st.markdown("""
@@ -200,10 +205,10 @@ def app():
 
     chat = st.container()
     with chat:
-        if len(chat_history.messages) == 0:
-            chat_history.add_ai_message(ai_intro)
+        if len(agent_memory.chat_memory.messages) == 0:
+            agent_memory.chat_memory.add_ai_message(ai_intro)
 
-        for msg in chat_history.messages:
+        for msg in agent_memory.chat_memory.messages:
             st.chat_message(msg.type).write(msg.content)
 
     if user_input := st.chat_input():
@@ -214,8 +219,8 @@ def app():
             st.chat_message('ai').write(response['output'])
 
     # get the output of the last message from the agent
-    if len(chat_history.messages) > 1:
-        last_output_message = chat_history.messages[-1].content
+    if len(agent_memory.chat_memory.messages) > 1:
+        last_output_message = agent_memory.chat_memory.messages[-1].content
         if re.findall(r'```sql\n(.*?)\n```', last_output_message, re.DOTALL):
             with chat:
                 col1, col2 = st.columns(2)
@@ -255,7 +260,7 @@ def app():
                         st.text_input('Output table name', disabled=True)
                         with st.spinner('Preparing transformation details ...'):
                             st.session_state[_ST_TRANS_DETAILS] = _generate_config_details(
-                                chat_history.messages[-2:], model_current)
+                                agent_memory.chat_memory.messages[-2:], model_current)
                         text_inputs.empty()
 
                 with text_inputs.container():
@@ -270,11 +275,11 @@ def app():
                 try:
                     response = create_snowflake_transformation(
                         sql_query=query, name=tr_name, description=tr_description, output_table_name=tr_output_table)
-                    chat_history.add_ai_message(
+                    agent_memory.chat_memory.add_ai_message(
                         f'Created transformation [{tr_name}]({get_transformation_url(response)})')
 
                 except RequestException as rqe:
-                    chat_history.add_ai_message(
+                    agent_memory.chat_memory.add_ai_message(
                         f'Failed to created transformation `{tr_name}`.\n'
                         f'```json{json.dumps(rqe.response.json(), ensure_ascii=False, indent=2)}```')
 
