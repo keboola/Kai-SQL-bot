@@ -17,8 +17,8 @@ from starlette.routing import Route
 from agent import AgentBuilder
 
 
-async def _redirect_root_to_docs(_rq: Request):
-    return RedirectResponse('/docs')
+async def _redirect_root_to_docs(rq: Request):
+    return RedirectResponse(f'{rq.scope.get("root_path")}/docs')
 
 
 class _ApiRequest(CustomUserType):
@@ -57,6 +57,7 @@ def main():
     parser.add_argument('--bind', default='localhost',
                         help='Name or IP address of the network interface where the sever will listen.')
     parser.add_argument('--port', type=int, default=5000, help='The port to listen at.')
+    parser.add_argument('--server-path', help='The URL path prefix where this API is available.')
     args = parser.parse_args()
 
     dotenv.load_dotenv()
@@ -65,12 +66,12 @@ def main():
         title='SQL-Bot REST API',
         routes=[
             Route('/', endpoint=_redirect_root_to_docs)
-        ]
+        ],
+        root_path=args.server_path,
     )
     langserve.add_routes(
         app,
         runnable=_create_api_chain(),
-        path='/sql-bot',
         enabled_endpoints=['invoke', 'stream']
     )
 
