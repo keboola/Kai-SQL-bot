@@ -11,14 +11,18 @@ from langchain_core.runnables import RunnableLambda
 from langserve import CustomUserType
 from pydantic import Field
 from starlette.requests import Request
-from starlette.responses import RedirectResponse
+from starlette.responses import JSONResponse, RedirectResponse, Response
 from starlette.routing import Route
 
 from agent import AgentBuilder
 
 
-async def _redirect_root_to_docs(rq: Request):
+async def _redirect_root_to_docs(rq: Request) -> Response:
     return RedirectResponse(f'{rq.scope.get("root_path")}/docs')
+
+
+async def _get_status(_rq: Request) -> Response:
+    return JSONResponse({'message': 'SQL-Bot API server - ready.'})
 
 
 class _ApiRequest(CustomUserType):
@@ -65,7 +69,8 @@ def main():
     app = FastAPI(
         title='SQL-Bot REST API',
         routes=[
-            Route('/', endpoint=_redirect_root_to_docs)
+            Route('/', endpoint=_redirect_root_to_docs),
+            Route('/status', methods=['GET'], endpoint=_get_status),
         ],
         root_path=args.server_path,
     )
