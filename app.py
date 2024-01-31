@@ -1,117 +1,29 @@
-import enum
 import json
 import os
 import re
-from typing import Any, List, Mapping, Optional
+from typing import Any, List, Mapping
 
 import openai
 import streamlit as st
-from langchain.agents import AgentExecutor, AgentType, initialize_agent
+from langchain.agents import AgentExecutor
 from langchain.callbacks import FileCallbackHandler
 from langchain.callbacks.streamlit import StreamlitCallbackHandler
 from langchain.memory import ConversationBufferMemory
-from langchain_community.agent_toolkits import SQLDatabaseToolkit
-from langchain_community.utilities.sql_database import SQLDatabase
-from langchain_core.language_models import BaseLanguageModel
 from langchain_core.messages import BaseMessage
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import HumanMessagePromptTemplate, MessagesPlaceholder, \
-    PromptTemplate, SystemMessagePromptTemplate
-from langchain_core.prompts.chat import MessageLike
+from langchain_core.prompts import PromptTemplate
 from langchain_core.pydantic_v1 import BaseModel, Field
-from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
-from llama_hub.tools.waii import WaiiToolSpec
-from llama_index.tools import FunctionTool
 from llmonitor.langchain import LLMonitorCallbackHandler
 from requests import RequestException
 
+import prompts
+from agent import AgentBuilder
 from create import create_snowflake_transformation, get_transformation_url
-from prompts import ai_intro, custom_gen_sql, kai_gen_sql
 
 _ST_CHAT_HiSTORY_KEY = 'sql-bot-message-history-in-streamlit'
 _ST_TRANS_QUERY = 'transformation_query'
 _ST_TRANS_DETAILS = 'transformation_details'
-
-
-class _Model(enum.Enum):
-    GPT_4_TURBO = 'gpt-4-1106-preview'
-    GPT_4 = 'gpt-4'
-    GPT_35_TURBO = 'gpt-3.5-turbo-16k'
-
-    @staticmethod
-    def from_text(text: str) -> Optional['_Model']:
-        for m in _Model:
-            if m.value == text:
-                return m
-
-
-class _Toolkit(enum.Enum):
-    WAII = 'WAII Tools'
-    LANGCHAIN = 'Langchain SQL Tools'
-
-    @staticmethod
-    def from_text(text: str) -> Optional['_Toolkit']:
-        for m in _Toolkit:
-            if m.value == text:
-                return m
-
-
-def _get_waii_tools() -> List[BaseTool]:
-    conn_string = (f'snowflake://{st.secrets["user"]}@{st.secrets["account_identifier"]}/{st.secrets["database_name"]}'
-                   f'?role={st.secrets["user"]}&warehouse={st.secrets["warehouse_name"]}')
-    waii_api_key = st.secrets['waii_prod_api_key']
-    waii_tool_spec = WaiiToolSpec(
-        url='https://tweakit.waii.ai/api/',
-        api_key=waii_api_key,
-        database_key=conn_string,
-        verbose=True
-    )
-    waii_tools: List[FunctionTool] = waii_tool_spec.to_tool_list()
-    langchain_tools = [t.to_langchain_tool() for t in waii_tools]
-
-    waii_tools_descriptions = [(t.metadata.name, t.metadata.description) for t in waii_tools]
-    langchain_tools_descriptions = [(t.name, t.description) for t in langchain_tools]
-    assert waii_tools_descriptions == langchain_tools_descriptions
-
-    return langchain_tools
-
-
-def _get_langchain_tools(llm: BaseLanguageModel) -> List[BaseTool]:
-    conn_string = (f'snowflake://{st.secrets["user"]}:{st.secrets["password"]}'
-                   f'@{st.secrets["account_identifier"]}/{st.secrets["database_name"]}/{st.secrets["schema_name"]}'
-                   f'?role={st.secrets["user"]}&warehouse={st.secrets["warehouse_name"]}')
-    return SQLDatabaseToolkit(db=SQLDatabase.from_uri(conn_string), llm=llm).get_tools()
-
-
-def _create_agent(model: _Model, toolkit: _Toolkit) -> AgentExecutor:
-    llm = ChatOpenAI(model_name=model.value, temperature=0, streaming=True)
-    if toolkit == _Toolkit.WAII:
-        tools = _get_waii_tools()
-        system_prompt = SystemMessagePromptTemplate(prompt=kai_gen_sql)
-    elif toolkit == _Toolkit.LANGCHAIN:
-        tools = _get_langchain_tools(llm)
-        system_prompt = SystemMessagePromptTemplate(prompt=custom_gen_sql)
-    else:
-        raise ValueError(f'Unknown toolkit: {toolkit}')
-
-    prompt: List[MessageLike] = [
-        MessagesPlaceholder(variable_name='chat_history'),
-        HumanMessagePromptTemplate(prompt=PromptTemplate(input_variables=['input'], template='{input}')),
-        MessagesPlaceholder(variable_name='agent_scratchpad')
-    ]
-
-    return initialize_agent(
-        tools=tools,
-        llm=llm,
-        agent=AgentType.OPENAI_FUNCTIONS,
-        agent_kwargs={
-            'system_message': system_prompt,
-            'extra_prompt_messages': prompt,
-        },
-        memory=ConversationBufferMemory(memory_key='chat_history', return_messages=True),
-        verbose=True
-    )
 
 
 def _call_agent(agent: AgentExecutor, user_input: str) -> Mapping[str, Any]:
@@ -131,7 +43,7 @@ class _AIConfig(BaseModel):
     ai_output_table: str = Field(description='name of the output table')
 
 
-def _generate_config_details(chat_history: List[BaseMessage], model: _Model) -> Mapping[str, Any]:
+def _generate_config_details(chat_history: List[BaseMessage], model: AgentBuilder.Model) -> Mapping[str, Any]:
     model = ChatOpenAI(model_name=model.value, temperature=0)
     ai_query = f'''
 Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
@@ -160,22 +72,31 @@ def app():
     st.markdown(f'# {home_title} <span style="color:#2E9BF5; font-size:16px;">Beta</span>', unsafe_allow_html=True)
 
     st.sidebar.markdown(f'## {home_title} Settings')
-    model_current = _Model.from_text(st.sidebar.selectbox(
+    model_current = AgentBuilder.Model.from_text(st.sidebar.selectbox(
         label='Choose a model',
-        options=[m.value for m in _Model],
+        options=[m.value for m in AgentBuilder.Model],
         help='Select the model you want to use for the chatbot.'
     ))
-    model_last = _Model.from_text(st.session_state.get('model'))
-    toolkit_current = _Toolkit.from_text(st.sidebar.selectbox(
+    model_last = AgentBuilder.Model.from_text(st.session_state.get('model'))
+    toolkit_current = AgentBuilder.Toolkit.from_text(st.sidebar.selectbox(
         label='Choose tools',
-        options=[t.value for t in _Toolkit],
+        options=[t.value for t in AgentBuilder.Toolkit],
         help='Select the tools you want to use for the chatbot.'
     ))
-    toolkit_last = _Toolkit.from_text(st.session_state.get('toolkit'))
+    toolkit_last = AgentBuilder.Toolkit.from_text(st.session_state.get('toolkit'))
 
     if model_last != model_current or toolkit_last != toolkit_current:
         # reset the agent
-        agent = _create_agent(model_current, toolkit_current)
+        agent = (AgentBuilder()
+                 .with_model(model_current)
+                 .with_toolkit(toolkit_current)
+                 .with_waii_api_key(st.secrets.WAII_API_KEY)
+                 .with_snowflake(
+                    username=st.secrets.SNFLK_USER, password=st.secrets.SNFLK_PASSWORD,
+                    account_identifier=st.secrets.SNFLK_ACCOUNT_IDENTIFIER, database_name=st.secrets.SNFLK_DATABASE,
+                    schema_name=st.secrets.SNFLK_SCHEMA, warehouse=st.secrets.SNFLK_WAREHOUSE
+                 )
+                 .build())
         st.session_state['agent'] = agent
         # store string to the session, using custom classes results in different type instances create after each
         # streamlit re-run and comparing the seemingly same class instances does not work then
@@ -206,7 +127,7 @@ def app():
     chat = st.container()
     with chat:
         if len(agent_memory.chat_memory.messages) == 0:
-            agent_memory.chat_memory.add_ai_message(ai_intro)
+            agent_memory.chat_memory.add_ai_message(prompts.ai_intro)
 
         for msg in agent_memory.chat_memory.messages:
             st.chat_message(msg.type).write(msg.content)

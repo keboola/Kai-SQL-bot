@@ -7,6 +7,7 @@ langserve[server]==0.0.41
 llama_hub
 llmonitor~=0.0.51
 openai~=1.10
+pydantic~=1.10
 python-dotenv~=1.0
 requests~=2.31
 snowflake-sqlalchemy~=1.5
@@ -14,4 +15,5 @@ SQLAlchemy~=1.4
 SQLAlchemy-Utils~=0.41
 starlette~=0.35
 streamlit
+uvicorn~=0.27
 waii-sdk-py
