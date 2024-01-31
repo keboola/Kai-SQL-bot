@@ -132,7 +132,7 @@ def _generate_config_details(chat_history: List[BaseMessage], model: _Model) -> 
     model = ChatOpenAI(model=model.value, temperature=0)
     ai_query = f'''
 Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
-description (max 300 characters) and output table name adhering to Snowflake naming conventions. Focus on describing the user's business intent. 
+description (max 500 characters) and output table name adhering to Snowflake naming conventions. Focus on describing the user's business intent. 
         {chat_history}'''
 
     parser = JsonOutputParser(pydantic_object=_AIConfig)
@@ -200,12 +200,38 @@ def app():
 
     chat = st.container()
     with chat:
+        def _describe():
+            with chat:
+                _call_agent(agent, 'Describe my database, do not include INFORMATION_SCHEMA in your answer.')
+        
+        def _suggest():
+            with chat:
+                _call_agent(agent, 'Come up with some example questions for my database.')
+        
+        def _analyze():
+            with chat:
+                _call_agent(agent, 'Analyze my database. List 5 examples of transformations that can be performed, giving examples of specific tables for each, but not queries.')
+                
+        placeholder = st.empty()
+        
         if len(chat_history.messages) == 0:
             chat_history.add_ai_message(ai_intro)
+        
+            col1, col2, col3 = st.columns(3)
+            col1.button('Describe My Database',
+                    on_click=_describe,
+                    use_container_width=True)
+            col2.button('Example Questions',
+                        on_click=_suggest,
+                        use_container_width=True)
+            col3.button('Analyze & Suggest Ops',
+                on_click=_analyze,
+                use_container_width=True)
 
         for msg in chat_history.messages:
-            st.chat_message(msg.type).write(msg.content)
-
+            with placeholder:
+                st.chat_message(msg.type).write(msg.content)
+            
     if user_input := st.chat_input():
         with chat:
             st.session_state.pop(_ST_TRANS_QUERY, None)
