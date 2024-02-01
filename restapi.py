@@ -6,12 +6,13 @@ import dotenv
 import langserve
 import uvicorn
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 from langserve import CustomUserType
-from pydantic import Field
+from pydantic import BaseModel, Field
 from starlette.requests import Request
-from starlette.responses import JSONResponse, RedirectResponse, Response
+from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
 from agent import AgentBuilder
@@ -21,11 +22,16 @@ async def _redirect_root_to_docs(rq: Request) -> Response:
     return RedirectResponse(f'{rq.scope.get("root_path")}/docs')
 
 
-async def _get_status(_rq: Request) -> Response:
-    return JSONResponse({'message': 'SQL-Bot API server - ready.'})
+class _MessageApiResp(BaseModel):
+    message: str
 
 
-class _ApiRequest(CustomUserType):
+async def _get_status(_rq: Request) -> _MessageApiResp:
+    """Gets the REST API server status."""
+    return _MessageApiResp(message='SQL-Bot API server - ready.')
+
+
+class _ChatApiRq(CustomUserType):
     """Describes the API request."""
     chat_history: List[Tuple[str, str]] = Field(examples=[[('human question', 'ai response')]])
     input: str
@@ -51,8 +57,8 @@ def _create_api_chain():
              .use_external_memory()
              .log_to_lunary(app_id=os.environ.get('LUNARY_APP_ID'))
              .build())
-    chain = RunnableLambda(_ApiRequest.convert_to_agent_input) | agent
-    chain = chain.with_types(input_type=_ApiRequest)
+    chain = RunnableLambda(_ChatApiRq.convert_to_agent_input) | agent
+    chain = chain.with_types(input_type=_ChatApiRq)
     return chain
 
 
@@ -70,7 +76,7 @@ def main():
         title='SQL-Bot REST API',
         routes=[
             Route('/', endpoint=_redirect_root_to_docs),
-            Route('/status', methods=['GET'], endpoint=_get_status),
+            APIRoute('/status', methods=['GET'], endpoint=_get_status),
         ],
         root_path=args.server_path,
     )
