@@ -1,6 +1,6 @@
 import argparse
 import os
-from typing import Any, List, Mapping, Tuple
+from typing import Any, List, Mapping, Optional, Tuple
 
 import dotenv
 import langserve
@@ -62,6 +62,25 @@ def _create_api_chain():
     return chain
 
 
+def create_app(*, server_path: Optional[str] = None) -> FastAPI:
+    dotenv.load_dotenv()
+    server_path = server_path or os.getenv('SERVER_PATH')
+    app = FastAPI(
+        title='SQL-Bot REST API',
+        routes=[
+            Route('/', endpoint=_redirect_root_to_docs),
+            APIRoute('/status', methods=['GET'], endpoint=_get_status),
+        ],
+        root_path=server_path,
+    )
+    langserve.add_routes(
+        app,
+        runnable=_create_api_chain(),
+        enabled_endpoints=['invoke', 'stream']
+    )
+    return app
+
+
 def main():
     parser = argparse.ArgumentParser(description='Starts REST API server for SQL-Bot.')
     parser.add_argument('--bind', default='localhost',
@@ -70,22 +89,7 @@ def main():
     parser.add_argument('--server-path', help='The URL path prefix where this API is available.')
     args = parser.parse_args()
 
-    dotenv.load_dotenv()
-
-    app = FastAPI(
-        title='SQL-Bot REST API',
-        routes=[
-            Route('/', endpoint=_redirect_root_to_docs),
-            APIRoute('/status', methods=['GET'], endpoint=_get_status),
-        ],
-        root_path=args.server_path,
-    )
-    langserve.add_routes(
-        app,
-        runnable=_create_api_chain(),
-        enabled_endpoints=['invoke', 'stream']
-    )
-
+    app = create_app(server_path=args.server_path)
     uvicorn.run(app, host=args.bind, port=args.port)
 
 
