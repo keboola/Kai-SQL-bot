@@ -135,7 +135,7 @@ class AgentBuilder:
         return self
 
     def with_model(self, model: 'AgentBuilder.Model') -> 'AgentBuilder':
-        self._model = _check_empty(model, message='toolkit is None')
+        self._model = _check_empty(model, message='model is None')
         return self
 
     def use_external_memory(self) -> 'AgentBuilder':
