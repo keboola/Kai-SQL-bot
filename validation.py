@@ -6,7 +6,6 @@ import os
 import openai
 import pandas as pd
 from langchain.evaluation import load_evaluator
-from langchain.memory import ConversationBufferMemory
 from langchain_openai import ChatOpenAI
 from llmonitor.langchain import LLMonitorCallbackHandler
 
@@ -20,9 +19,7 @@ current_time = datetime.datetime.now().timestamp()
 lunary_callback = LLMonitorCallbackHandler(app_id=os.getenv("LUNARY_APP_ID"))
 lunary_user_id = f"ValidationRun-{current_time}"
 
-memory = ConversationBufferMemory()
-
-llm = ChatOpenAI(model="gpt-4-1106-preview", temperature=0,streaming=True)
+llm = ChatOpenAI(model="gpt-4-1106-preview", temperature=0, streaming=True)
 
 db_conn = DatabaseConnection(
     account_identifier=os.getenv("SNFLK_ACCOUNT_IDENTIFIER"),
@@ -36,7 +33,7 @@ db_conn = DatabaseConnection(
 
 toolkit = db_conn.create_toolkit(llm)
 
-agent_creator = SQLAgentCreator(toolkit=toolkit, llm=llm, custom_tool_list=custom_tool_list, memory=memory)
+agent_creator = SQLAgentCreator(toolkit=toolkit, llm=llm, custom_tool_list=custom_tool_list)
 
 evaluator = load_evaluator("labeled_pairwise_string")
 with open('validation.json', 'r') as f:
@@ -44,8 +41,6 @@ with open('validation.json', 'r') as f:
 
 print("data loaded")
 
-n = 0
-evaluation_output = {}
 
 def process_data(item):
     agent_executor = agent_creator.create_agent()
@@ -55,7 +50,9 @@ def process_data(item):
     prompt_formatted = custom_gen_sql.format(context=data['question'])
 
     try:
-        response = agent_executor.run(input=prompt_formatted, memory=memory, callbacks=[lunary_callback], metadata={ "agentName": "KaiSQLBot", "user_id": lunary_user_id})
+        response = agent_executor.run(
+            input=prompt_formatted, callbacks=[lunary_callback],
+            metadata={"agentName": "KaiSQLBot", "user_id": lunary_user_id})
     except ValueError as e:
         response = str(e)
         if not response.startswith("Could not parse LLM output: `"):
