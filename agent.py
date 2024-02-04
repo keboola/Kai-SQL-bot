@@ -1,34 +1,37 @@
 import enum
-from typing import List, Optional, TypeVar
+from typing import List, Optional, Sequence, TypeVar
 
 from langchain.agents import AgentExecutor, create_sql_agent, initialize_agent
 from langchain.agents.agent_types import AgentType
 from langchain.memory import ConversationBufferMemory
 from langchain_community.agent_toolkits import SQLDatabaseToolkit
-from langchain_community.callbacks import LLMonitorCallbackHandler
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_core.callbacks import BaseCallbackHandler
 from langchain_core.language_models import BaseLanguageModel
+from langchain_core.memory import BaseMemory
 from langchain_core.prompts import PromptTemplate, SystemMessagePromptTemplate
 from langchain_core.prompts.chat import HumanMessagePromptTemplate, MessageLike, MessagesPlaceholder
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from llama_hub.tools.waii import WaiiToolSpec
 from llama_index.tools import FunctionTool
+from llmonitor.langchain import LLMonitorCallbackHandler
 
 import prompts
 
 
 class SQLAgentCreator:
-    def __init__(self, llm, toolkit, custom_tool_list=None, memory=None):
+    def __init__(
+            self, llm: BaseLanguageModel, toolkit: SQLDatabaseToolkit,
+            custom_tool_list: Optional[Sequence[BaseTool]] = None, memory: Optional[BaseMemory] = None):
         """
         Initializes an instance of SQLAgentCreator.
 
         Args:
-            llm (str): The language model to be used by the agent.
-            toolkit (str): The toolkit to be used by the agent.
-            custom_tool_list (list, optional): A list of custom tools to be used by the agent. Defaults to None.
-            memory (str, optional): The memory to be used by the agent. Defaults to None.
+            llm: The language model to be used by the agent.
+            toolkit: The toolkit to be used by the agent.
+            custom_tool_list: A list of custom tools to be used by the agent. Defaults to None.
+            memory: The memory to be used by the agent. Defaults to None.
         """
         self.llm = llm
         self.toolkit = toolkit
@@ -50,7 +53,7 @@ class SQLAgentCreator:
             max_iterations=50,
             extra_tools=self.custom_tool_list,
             agent_type=AgentType.OPENAI_FUNCTIONS,
-            memory=self.memory
+            agent_executor_kwargs={'memory': self.memory},
         )
         return agent_executor
 

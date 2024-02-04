@@ -1,22 +1,20 @@
-import openai
-import streamlit as st
-import pandas as pd
-import json
-import datetime
 import concurrent.futures
+import datetime
+import json
 import os
 
-from langchain.memory import ConversationBufferMemory
-from langchain.chat_models import ChatOpenAI
+import openai
+import pandas as pd
 from langchain.evaluation import load_evaluator
-from langchain.callbacks import LLMonitorCallbackHandler
+from langchain.memory import ConversationBufferMemory
+from langchain_openai import ChatOpenAI
+from llmonitor.langchain import LLMonitorCallbackHandler
 
-from src.database_connection.database_connection import DatabaseConnection
 from agent import SQLAgentCreator
 from few_shot_examples import custom_tool_list
 from prompts import custom_gen_sql
+from src.database_connection.database_connection import DatabaseConnection
 
-#get current datetime as a unix timestamp
 current_time = datetime.datetime.now().timestamp()
 
 lunary_callback = LLMonitorCallbackHandler(app_id=os.getenv("LUNARY_APP_ID"))
@@ -26,8 +24,15 @@ memory = ConversationBufferMemory()
 
 llm = ChatOpenAI(model="gpt-4-1106-preview", temperature=0,streaming=True)
 
-db_conn = DatabaseConnection(os.getenv("ACCOUNT_IDENTIFIER"), os.getenv("USER"), os.getenv("PASSWORD"),
-                    os.getenv("DATABASE_NAME"), os.getenv("SCHEMA_NAME"), os.getenv("WAREHOUSE_NAME"), os.getenv("ROLE_NAME"))
+db_conn = DatabaseConnection(
+    account_identifier=os.getenv("SNFLK_ACCOUNT_IDENTIFIER"),
+    user=os.getenv("SNFLK_USER"),
+    password=os.getenv("SNFLK_PASSWORD"),
+    database_name=os.getenv("SNFLK_DATABASE"),
+    schema_name=os.getenv("SNFLK_SCHEMA"),
+    warehouse_name=os.getenv("SNFLK_WAREHOUSE"),
+    role_name=os.getenv("SNFLK_USER")
+)
 
 toolkit = db_conn.create_toolkit(llm)
 
