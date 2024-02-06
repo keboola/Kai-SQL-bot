@@ -14,7 +14,6 @@ from langchain_core.prompts.chat import HumanMessagePromptTemplate, MessageLike,
 from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
 from llama_hub.tools.waii import WaiiToolSpec
-from llama_index.tools import FunctionTool
 from llmonitor.langchain import LLMonitorCallbackHandler
 
 import prompts
@@ -199,13 +198,14 @@ class AgentBuilder:
             verbose=True
         )
         # convert LlamaIndex tools to Langchain tools
-        llama_index_tools: List[FunctionTool] = waii_tool_spec.to_tool_list()
-        langchain_tools = [t.to_langchain_tool() for t in llama_index_tools]
+        converted_langchain_tools = [t.to_langchain_tool() for t in waii_tool_spec.to_tool_list()]
 
-        # check that the tool descriptions did not get distorted when converted
-        waii_tools_descriptions = [(t.metadata.name, t.metadata.description) for t in llama_index_tools]
-        langchain_tools_descriptions = [(t.name, t.description) for t in langchain_tools]
-        assert waii_tools_descriptions == langchain_tools_descriptions
+        # use only a subset of all tools, and change their descriptions
+        langchain_tools = []
+        for tool in converted_langchain_tools:
+            if tool.name in prompts.waii_tool_functions:
+                tool.description = prompts.waii_tool_custom_descriptions[tool.name]
+                langchain_tools.append(tool)
 
         return langchain_tools
 

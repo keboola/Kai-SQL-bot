@@ -131,3 +131,33 @@ left join "customers" on "orders"."customer_id" = "customers"."id"
 group by "customer_id" having count(*) > 2
 """
 )
+
+waii_tool_functions = ['get_answer', 'generate_query_only', 'run_query', 'describe_dataset']
+waii_tool_custom_descriptions = {
+    'get_answer':  # get_answer and its description
+"""
+Generate a SQL query and run it against the database, returning the summarization of the answer
+""",
+
+    'generate_query_only':  # generate_query_only and its description
+"""
+Generate a SQL query and NOT run it, returning the query. If you need to get answer, you should use get_answer instead.
+Use this function when user want to get a query but not an answer returned
+""",
+
+    'run_query':  # run_query and its description
+"""
+Run an existing (no need to generate a new one) SQL query, and get summary of the result
+""",
+
+    'describe_dataset':  # describe_dataset and its description
+"""
+Describe a dataset (no matter if it is a table or schema), returning the summarization of the answer.
+Example questions like: "describe the dataset", "what the schema is about", "example question for the table xxx", etc.
+When both schema and table are None, describe the whole database.
+
+If asked question needs a query against information_schema to answer the question, such as
+"how many tables in the database / how many column of each table, etc."
+use `get_answer` instead of `describe_dataset`
+""",
+}
