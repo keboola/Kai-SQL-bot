@@ -204,8 +204,9 @@ class AgentBuilder:
         langchain_tools = []
         for tool in converted_langchain_tools:
             if tool.name in prompts.waii_tool_functions:
-                tool.description = prompts.waii_tool_custom_descriptions[tool.name]
                 langchain_tools.append(tool)
+                if tool.name in prompts.waii_tool_custom_descriptions:
+                    tool.description = prompts.waii_tool_custom_descriptions[tool.name]
 
         return langchain_tools
 
