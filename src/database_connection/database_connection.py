@@ -1,7 +1,7 @@
-from langchain.agents.agent_toolkits import SQLDatabaseToolkit
-from langchain.sql_database import SQLDatabase
-from langchain.agents.agent_types import AgentType
 import streamlit as st
+from langchain.sql_database import SQLDatabase
+from langchain_community.agent_toolkits import SQLDatabaseToolkit
+
 
 class DatabaseConnection:
     def __init__(self, account_identifier=None, user=None, password=None, 
@@ -15,7 +15,9 @@ class DatabaseConnection:
         self.role_name = role_name or st.secrets["role_name"]
 
     def create_connection_string(self):
-        conn_string = f"snowflake://{self.user}:{self.password}@{self.account_identifier}/{self.database_name}/{self.schema_name}?warehouse={self.warehouse_name}&role={self.role_name}"
+        conn_string = (f"snowflake://{self.user}:{self.password}"
+                       f"@{self.account_identifier}/{self.database_name}/{self.schema_name}"
+                       f"?warehouse={self.warehouse_name}&role={self.role_name}")
         return conn_string
 
     def create_db(self):
@@ -25,11 +27,5 @@ class DatabaseConnection:
 
     def create_toolkit(self, llm):
         db = self.create_db()
-        toolkit = SQLDatabaseToolkit(llm=llm, db=db, view_intermediate_results=True, view_messages=True, view_sql=True)
+        toolkit = SQLDatabaseToolkit(llm=llm, db=db)
         return toolkit
-    
-
-if __name__ == '__main__':
-    db = DatabaseConnection()
-    db.create_db()
-    db.create_toolkit()

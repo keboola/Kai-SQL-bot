@@ -10,8 +10,8 @@ BRANCH_ID = 'default'
 
 
 def get_transformation_url(api_response: Mapping[str, Any]) -> str:
-    url = st.secrets['keboola_url'].rstrip('/')
-    token_info = Client(url, st.secrets['keboola_token']).tokens.verify()
+    url = st.secrets.KBC_URL.rstrip('/')
+    token_info = Client(url, st.secrets.KBC_TOKEN).tokens.verify()
     return f'{url}/admin/projects/{token_info["owner"]["id"]}/transformations-v2/{COMPONENT_ID}/{api_response["id"]}'
 
 
@@ -86,8 +86,8 @@ def _create_transformation_in_keboola(
     :return: The parsed JSON from the Storage API response.
     """
     configurations_client = Configurations(
-        root_url=st.secrets['keboola_url'],
-        token=st.secrets['keboola_token'],
+        root_url=st.secrets.KBC_URL,
+        token=st.secrets.KBC_TOKEN,
         branch_id=BRANCH_ID
     )
     return configurations_client.create(
