@@ -17,6 +17,8 @@ from starlette.routing import Route
 
 from agent import AgentBuilder
 
+_API_VERSION = 'v1'
+
 
 async def _redirect_root_to_docs(rq: Request) -> Response:
     return RedirectResponse(f'{rq.scope.get("root_path")}/docs')
@@ -76,7 +78,8 @@ def create_app(*, server_path: Optional[str] = None) -> FastAPI:
     langserve.add_routes(
         app,
         runnable=_create_api_chain(),
-        enabled_endpoints=['invoke', 'stream']
+        enabled_endpoints=['invoke', 'stream'],
+        path=f'/{_API_VERSION}/agent',
     )
     return app
 
