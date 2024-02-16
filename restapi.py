@@ -8,7 +8,10 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda
+from langchain_openai import ChatOpenAI
 from langserve import CustomUserType
 from pydantic import BaseModel, Field
 from starlette.requests import Request
@@ -18,6 +21,7 @@ from starlette.routing import Route
 from agent import AgentBuilder
 
 _API_VERSION = 'v1'
+_LLM = AgentBuilder.Model.GPT_4
 
 
 async def _redirect_root_to_docs(rq: Request) -> Response:
@@ -49,7 +53,7 @@ class _ChatApiRq(CustomUserType):
 def _create_api_chain():
     """Creates chain that converts the API request into the agents input dict and runs the agent."""
     agent = (AgentBuilder()
-             .with_model(AgentBuilder.Model.GPT_4)
+             .with_model(_LLM)
              .with_waii_tools(waii_api_key=os.environ['WAII_API_KEY'])
              .with_snowflake(
                 username=os.environ['SNFLK_USER'], password=os.environ['SNFLK_PASSWORD'],
@@ -64,6 +68,44 @@ def _create_api_chain():
     return chain
 
 
+class _ConfigRq(BaseModel):
+    chat_history: List[Tuple[str, str]] = Field(examples=[[('human question', 'ai response')]])
+
+
+class _ConfigResp(BaseModel):
+    transformation_name: str = Field(description='name of the transformation (with spaces between words)')
+    transformation_description: str = Field(description='description of the transformation')
+    output_table: str = Field(description='name of the output table')
+
+
+def _get_config_handler():
+    llm = ChatOpenAI(model_name=_LLM.value, temperature=0)
+    parser = JsonOutputParser(pydantic_object=_ConfigResp)
+
+    prompt = PromptTemplate.from_template(
+        '''
+Answer the user query.
+
+{format_instructions}
+
+Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
+description (max 300 characters) and output table name adhering to Snowflake naming conventions. 
+Focus on describing the user's business intent.
+
+{chat_history}'''
+    )
+
+    chain = prompt | llm | parser
+
+    async def _get_config(rq: _ConfigRq) -> _ConfigResp:
+        return await chain.ainvoke({
+            'format_instructions': parser.get_format_instructions(),
+            'chat_history': rq.chat_history
+        })
+
+    return _get_config
+
+
 def create_app(*, server_path: Optional[str] = None) -> FastAPI:
     dotenv.load_dotenv()
     server_path = server_path or os.getenv('SERVER_PATH')
@@ -72,6 +114,7 @@ def create_app(*, server_path: Optional[str] = None) -> FastAPI:
         routes=[
             Route('/', endpoint=_redirect_root_to_docs),
             APIRoute('/status', methods=['GET'], endpoint=_get_status),
+            APIRoute(f'/{_API_VERSION}/config', methods=['POST'], endpoint=_get_config_handler()),
         ],
         root_path=server_path,
     )
