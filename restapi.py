@@ -9,7 +9,6 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnableLambda
 from langchain_openai import ChatOpenAI
 from langserve import CustomUserType
@@ -18,7 +17,9 @@ from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
+import prompts
 from agent import AgentBuilder
+
 
 _API_VERSION = 'v1'
 _LLM = AgentBuilder.Model.GPT_4
@@ -68,42 +69,33 @@ def _create_api_chain():
     return chain
 
 
-class _ConfigRq(BaseModel):
+class _TrConfigRq(BaseModel):
     chat_history: List[Tuple[str, str]] = Field(examples=[[('human question', 'ai response')]])
 
 
-class _ConfigResp(BaseModel):
+class _TrConfigResp(BaseModel):
     transformation_name: str = Field(description='name of the transformation (with spaces between words)')
     transformation_description: str = Field(description='description of the transformation')
     output_table: str = Field(description='name of the output table')
 
 
-def _get_config_handler():
+def _get_tr_config_handler():
     llm = ChatOpenAI(model_name=_LLM.value, temperature=0)
-    parser = JsonOutputParser(pydantic_object=_ConfigResp)
+    parser = JsonOutputParser(pydantic_object=_TrConfigResp)
+    chain = prompts.tr_config_prompt | llm | parser
 
-    prompt = PromptTemplate.from_template(
-        '''
-Answer the user query.
-
-{format_instructions}
-
-Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
-description (max 300 characters) and output table name adhering to Snowflake naming conventions. 
-Focus on describing the user's business intent.
-
-{chat_history}'''
-    )
-
-    chain = prompt | llm | parser
-
-    async def _get_config(rq: _ConfigRq) -> _ConfigResp:
+    async def _get_tr_config(rq: _TrConfigRq) -> _TrConfigResp:
+        chat_history: List[BaseMessage] = []
+        # take up to 2
+        for human, ai in rq.chat_history[-2:]:
+            chat_history.append(HumanMessage(content=human))
+            chat_history.append(AIMessage(content=ai))
         return await chain.ainvoke({
             'format_instructions': parser.get_format_instructions(),
-            'chat_history': rq.chat_history
+            'chat_history': chat_history,
         })
 
-    return _get_config
+    return _get_tr_config
 
 
 def create_app(*, server_path: Optional[str] = None) -> FastAPI:
@@ -114,7 +106,7 @@ def create_app(*, server_path: Optional[str] = None) -> FastAPI:
         routes=[
             Route('/', endpoint=_redirect_root_to_docs),
             APIRoute('/status', methods=['GET'], endpoint=_get_status),
-            APIRoute(f'/{_API_VERSION}/config', methods=['POST'], endpoint=_get_config_handler()),
+            APIRoute(f'/{_API_VERSION}/tr_config', methods=['POST'], endpoint=_get_tr_config_handler()),
         ],
         root_path=server_path,
     )
