@@ -2,10 +2,12 @@ faiss-cpu
 fastapi~=0.109
 kbcstorage
 langchain==0.1.4
+langchain-core==0.1.22
 langchain-openai==0.0.5
 langchain-community==0.0.19
 langserve[server]==0.0.41
-llama_hub
+llama_hub==0.0.78
+llama-index==0.9.47
 llmonitor~=0.0.51
 openai~=1.10
 pydantic~=1.10
