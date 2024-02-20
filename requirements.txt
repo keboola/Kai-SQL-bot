@@ -17,4 +17,4 @@ SQLAlchemy-Utils~=0.41
 starlette~=0.35
 streamlit
 uvicorn~=0.27
-waii-sdk-py
+waii-sdk-py==1.10.3
