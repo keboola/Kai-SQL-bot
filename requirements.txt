@@ -3,6 +3,7 @@ fastapi~=0.109
 kbcstorage
 langchain==0.1.4
 langchain-openai==0.0.5
+langchain-community==0.0.19
 langserve[server]==0.0.41
 llama_hub
 llmonitor~=0.0.51
