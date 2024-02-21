@@ -8,16 +8,21 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.runnables import RunnableLambda
+from langchain_openai import ChatOpenAI
 from langserve import CustomUserType
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
 
+import prompts
 from agent import AgentBuilder
 
+
 _API_VERSION = 'v1'
+_LLM = AgentBuilder.Model.GPT_4
 
 
 async def _redirect_root_to_docs(rq: Request) -> Response:
@@ -49,7 +54,7 @@ class _ChatApiRq(CustomUserType):
 def _create_api_chain():
     """Creates chain that converts the API request into the agents input dict and runs the agent."""
     agent = (AgentBuilder()
-             .with_model(AgentBuilder.Model.GPT_4)
+             .with_model(_LLM)
              .with_waii_tools(waii_api_key=os.environ['WAII_API_KEY'])
              .with_snowflake(
                 username=os.environ['SNFLK_USER'], password=os.environ['SNFLK_PASSWORD'],
@@ -64,6 +69,35 @@ def _create_api_chain():
     return chain
 
 
+class _TrConfigRq(BaseModel):
+    chat_history: List[Tuple[str, str]] = Field(examples=[[('human question', 'ai response')]])
+
+
+class _TrConfigResp(BaseModel):
+    transformation_name: str = Field(description='name of the transformation (with spaces between words)')
+    transformation_description: str = Field(description='description of the transformation')
+    output_table: str = Field(description='name of the output table')
+
+
+def _get_tr_config_handler():
+    llm = ChatOpenAI(model_name=_LLM.value, temperature=0)
+    parser = JsonOutputParser(pydantic_object=_TrConfigResp)
+    chain = prompts.tr_config_prompt | llm | parser
+
+    async def _get_tr_config(rq: _TrConfigRq) -> _TrConfigResp:
+        chat_history: List[BaseMessage] = []
+        # take up to 2
+        for human, ai in rq.chat_history[-2:]:
+            chat_history.append(HumanMessage(content=human))
+            chat_history.append(AIMessage(content=ai))
+        return await chain.ainvoke({
+            'format_instructions': parser.get_format_instructions(),
+            'chat_history': chat_history,
+        })
+
+    return _get_tr_config
+
+
 def create_app(*, server_path: Optional[str] = None) -> FastAPI:
     dotenv.load_dotenv()
     server_path = server_path or os.getenv('SERVER_PATH')
@@ -72,6 +106,7 @@ def create_app(*, server_path: Optional[str] = None) -> FastAPI:
         routes=[
             Route('/', endpoint=_redirect_root_to_docs),
             APIRoute('/status', methods=['GET'], endpoint=_get_status),
+            APIRoute(f'/{_API_VERSION}/tr_config', methods=['POST'], endpoint=_get_tr_config_handler()),
         ],
         root_path=server_path,
     )

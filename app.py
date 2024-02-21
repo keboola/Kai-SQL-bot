@@ -45,22 +45,13 @@ class _AIConfig(BaseModel):
 
 def _generate_config_details(chat_history: List[BaseMessage], model: AgentBuilder.Model) -> Mapping[str, Any]:
     model = ChatOpenAI(model_name=model.value, temperature=0)
-    ai_query = f'''
-Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
-description (max 300 characters) and output table name adhering to Snowflake naming conventions. 
-Focus on describing the user's business intent. 
-        {chat_history}'''
-
     parser = JsonOutputParser(pydantic_object=_AIConfig)
-    
-    prompt = PromptTemplate(
-        template='Answer the user query.\n{format_instructions}\n{query}\n',
-        input_variables=['query'],
-        partial_variables={'format_instructions': parser.get_format_instructions()},
-    )
-    chain = prompt | model | parser
+    chain = prompts.tr_config_prompt | model | parser
 
-    return chain.invoke({'query': ai_query})
+    return chain.invoke({
+        'format_instructions': parser.get_format_instructions(),
+        'chat_history': chat_history[-2:],  # take up to 2
+    })
 
 
 def app():
@@ -181,7 +172,7 @@ def app():
                         st.text_input('Output table name', disabled=True)
                         with st.spinner('Preparing transformation details ...'):
                             st.session_state[_ST_TRANS_DETAILS] = _generate_config_details(
-                                agent_memory.chat_memory.messages[-2:], model_current)
+                                agent_memory.chat_memory.messages, model_current)
                         text_inputs.empty()
 
                 with text_inputs.container():

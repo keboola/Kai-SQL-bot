@@ -132,6 +132,19 @@ group by "customer_id" having count(*) > 2
 """
 )
 
+tr_config_prompt = PromptTemplate.from_template(
+    """
+Answer the user query.
+
+{format_instructions}
+
+Based on the conversation history between Human and AI, create a SQL transformation name (max 8 words), 
+description (max 300 characters) and output table name adhering to Snowflake naming conventions. 
+Focus on describing the user's business intent.
+
+{chat_history}"""
+)
+
 waii_tool_functions = ['get_answer', 'generate_query_only', 'run_query', 'describe_dataset']
 waii_tool_custom_descriptions = {
     'get_answer':  # get_answer and its description
