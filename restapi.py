@@ -1,15 +1,16 @@
 import argparse
 import os
-from typing import Any, List, Mapping, Optional, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import dotenv
 import langserve
 import uvicorn
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
+from langchain_community.callbacks import LLMonitorCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_openai import ChatOpenAI
 from langserve import CustomUserType
 from pydantic import BaseModel, Field
@@ -19,7 +20,6 @@ from starlette.routing import Route
 
 import prompts
 from agent import AgentBuilder
-
 
 _API_VERSION = 'v1'
 _LLM = AgentBuilder.Model.GPT_4
@@ -43,7 +43,7 @@ class _ChatApiRq(CustomUserType):
     chat_history: List[Tuple[str, str]] = Field(examples=[[('human question', 'ai response')]])
     input: str
 
-    def convert_to_agent_input(self) -> Mapping[str, Any]:
+    def convert_to_agent_input(self) -> Dict[str, Any]:
         chat_history: List[BaseMessage] = []
         for human, ai in self.chat_history:
             chat_history.append(HumanMessage(content=human))
@@ -51,7 +51,7 @@ class _ChatApiRq(CustomUserType):
         return {'input': self.input, 'chat_history': chat_history}
 
 
-def _create_api_chain():
+def _create_api_chain() -> Runnable:
     """Creates chain that converts the API request into the agents input dict and runs the agent."""
     agent = (AgentBuilder()
              .with_model(_LLM)
@@ -62,9 +62,16 @@ def _create_api_chain():
                 schema_name=os.environ['SNFLK_SCHEMA'], warehouse=os.environ['SNFLK_WAREHOUSE']
              )
              .use_external_memory()
-             .log_to_lunary(app_id=os.environ.get('LUNARY_APP_ID'))
              .build())
-    chain = RunnableLambda(_ChatApiRq.convert_to_agent_input) | agent
+
+    def _handle_chain_request(rq: _ChatApiRq) -> Mapping[str, Any]:
+        config: Dict[str, Any] = {}
+        tracking_id = os.environ.get('LUNARY_APP_ID')
+        if tracking_id:
+            config['callbacks'] = [LLMonitorCallbackHandler(app_id=tracking_id)]
+        return agent.invoke(input=rq.convert_to_agent_input(), config=config)
+
+    chain = RunnableLambda(_handle_chain_request)
     chain = chain.with_types(input_type=_ChatApiRq)
     return chain
 
