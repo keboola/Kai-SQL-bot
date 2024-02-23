@@ -1,26 +1,32 @@
 import argparse
+import logging
 import os
-from typing import Any, List, Mapping, Optional, Tuple
+import time
+from pathlib import Path
+from typing import Any, Dict, List, Mapping, Optional, Tuple
 
 import dotenv
 import langserve
 import uvicorn
+import yaml
 from fastapi import FastAPI
 from fastapi.routing import APIRoute
+from langchain_community.callbacks import LLMonitorCallbackHandler
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.runnables import RunnableLambda
+from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_openai import ChatOpenAI
 from langserve import CustomUserType
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 from starlette.responses import RedirectResponse, Response
 from starlette.routing import Route
+from uvicorn.config import LOGGING_CONFIG
 
 import prompts
 from agent import AgentBuilder
 
-
+LOG = logging.getLogger(__package__)
 _API_VERSION = 'v1'
 _LLM = AgentBuilder.Model.GPT_4
 
@@ -43,7 +49,7 @@ class _ChatApiRq(CustomUserType):
     chat_history: List[Tuple[str, str]] = Field(examples=[[('human question', 'ai response')]])
     input: str
 
-    def convert_to_agent_input(self) -> Mapping[str, Any]:
+    def convert_to_agent_input(self) -> Dict[str, Any]:
         chat_history: List[BaseMessage] = []
         for human, ai in self.chat_history:
             chat_history.append(HumanMessage(content=human))
@@ -51,7 +57,7 @@ class _ChatApiRq(CustomUserType):
         return {'input': self.input, 'chat_history': chat_history}
 
 
-def _create_api_chain():
+def _create_api_chain() -> Runnable:
     """Creates chain that converts the API request into the agents input dict and runs the agent."""
     agent = (AgentBuilder()
              .with_model(_LLM)
@@ -62,9 +68,32 @@ def _create_api_chain():
                 schema_name=os.environ['SNFLK_SCHEMA'], warehouse=os.environ['SNFLK_WAREHOUSE']
              )
              .use_external_memory()
-             .log_to_lunary(app_id=os.environ.get('LUNARY_APP_ID'))
              .build())
-    chain = RunnableLambda(_ChatApiRq.convert_to_agent_input) | agent
+
+    config: Dict[str, Any] = {}
+    tracking_id = os.environ.get('LUNARY_APP_ID')
+    if tracking_id:
+        config['callbacks'] = [LLMonitorCallbackHandler(app_id=tracking_id)]
+
+    def _handle_chain_request(rq: _ChatApiRq) -> Mapping[str, Any]:
+        LOG.info(f'Request handler started.')
+        start = time.perf_counter()
+        try:
+            return agent.invoke(input=rq.convert_to_agent_input(), config=config)
+        finally:
+            duration = time.perf_counter() - start
+            LOG.info(f'Request handler finished in {duration:0.02f} seconds.')
+
+    async def _ahandle_chain_request(rq: _ChatApiRq) -> Mapping[str, Any]:
+        LOG.info(f'Asycn request handler started.')
+        start = time.perf_counter()
+        try:
+            return await agent.ainvoke(input=rq.convert_to_agent_input(), config=config)
+        finally:
+            duration = time.perf_counter() - start
+            LOG.info(f'Async request handler finished in {duration:0.02f} seconds.')
+
+    chain = RunnableLambda(func=_handle_chain_request, afunc=_ahandle_chain_request)
     chain = chain.with_types(input_type=_ChatApiRq)
     return chain
 
@@ -125,10 +154,13 @@ def main():
                         help='Name or IP address of the network interface where the sever will listen.')
     parser.add_argument('--port', type=int, default=5000, help='The port to listen at.')
     parser.add_argument('--server-path', help='The URL path prefix where this API is available.')
+    parser.add_argument('--log-config', type=Path, metavar='PATH',
+                        help='The uvicorn logging configuration file.')
     args = parser.parse_args()
 
     app = create_app(server_path=args.server_path)
-    uvicorn.run(app, host=args.bind, port=args.port)
+    log_config = yaml.safe_load(args.log_config.read_text(encoding='utf-8')) if args.log_config else LOGGING_CONFIG
+    uvicorn.run(app, host=args.bind, port=args.port, log_config=log_config)
 
 
 if __name__ == '__main__':
